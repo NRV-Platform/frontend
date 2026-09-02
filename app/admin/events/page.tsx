@@ -264,15 +264,6 @@ export default function AdminEventsPage() {
                 onChange={(e) => setEditing({ ...editing, capacity: +e.target.value })}
               />
             </Field>
-            <Field label="Start date" req>
-              <DatePicker value={editing.startDate} onChange={(v) => setEditing({ ...editing, startDate: v })} />
-            </Field>
-            <Field label="End date" req>
-              <DatePicker value={editing.endDate} onChange={(v) => setEditing({ ...editing, endDate: v })} />
-            </Field>
-            <Field label="Prize (plain text)">
-              <Input value={editing.prizeText} onChange={(e) => setEditing({ ...editing, prizeText: e.target.value })} />
-            </Field>
             <Field label="Registration opens">
               <DatePicker
                 value={editing.regOpenDate}
@@ -284,6 +275,15 @@ export default function AdminEventsPage() {
                 value={editing.regCloseDate}
                 onChange={(v) => setEditing({ ...editing, regCloseDate: v })}
               />
+            </Field>
+            <Field label="Prize (plain text)">
+              <Input value={editing.prizeText} onChange={(e) => setEditing({ ...editing, prizeText: e.target.value })} />
+            </Field>
+            <Field label="Start date" req>
+              <DatePicker value={editing.startDate} onChange={(v) => setEditing({ ...editing, startDate: v })} />
+            </Field>
+            <Field label="End date" req>
+              <DatePicker value={editing.endDate} onChange={(v) => setEditing({ ...editing, endDate: v })} />
             </Field>
           </div>
           <div className="flex gap-2.5 mt-4.5" style={{ marginTop: 18 }}>
