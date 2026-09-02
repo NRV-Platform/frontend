@@ -7,7 +7,6 @@ import { api, ApiError } from "@/lib/api";
 import { GAME_ROLES } from "@/lib/derived";
 import type { Team, TeamMembership } from "@/lib/types";
 import { AccessDenied } from "@/components/access-denied";
-import { PageShell } from "@/components/nav";
 import {
   PageHead,
   SectionLabel,
@@ -54,18 +53,12 @@ export default function TeamManagementPage() {
   if (loading || !checked) return null;
 
   if (!user) {
-    return (
-      <PageShell>
-        <AccessDenied need="Log in with an account that holds a team membership (coach, captain, or member) to manage a roster." />
-      </PageShell>
-    );
+    return <AccessDenied need="Log in with an account that holds a team membership (coach, captain, or member) to manage a roster." />;
   }
 
   if (!team) {
     return (
-      <PageShell>
-        <AccessDenied need="This account has no team membership. Register a team, or ask a coach to add you by your player tag." />
-      </PageShell>
+      <AccessDenied need="This account has no team membership. Register a team, or ask a coach to add you by your player tag." />
     );
   }
 
@@ -121,7 +114,7 @@ export default function TeamManagementPage() {
   const roster = team.memberships ?? [];
 
   return (
-    <PageShell>
+    <div>
       <div className="flex items-center gap-3.5 flex-wrap mb-2">
         <Pill color="#BFC2DE">Team management</Pill>
         <Pill color="#888BA0">{myMembership?.teamRole.replace("_", " ")}</Pill>
@@ -246,6 +239,6 @@ export default function TeamManagementPage() {
           separate from the NRV staff portal and grants no site-wide permissions.
         </div>
       </Card>
-    </PageShell>
+    </div>
   );
 }

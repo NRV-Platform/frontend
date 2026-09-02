@@ -7,17 +7,10 @@ import { AccessDenied } from "@/components/access-denied";
 import { Pill } from "@/components/ui/primitives";
 import type { PublicUser } from "@/lib/types";
 
-const ADMIN_PAGES = [
-  { id: "", label: "Dashboard", icon: "▦" },
-  { id: "events", label: "Events & Matches", icon: "⊞" },
-  { id: "teams", label: "NRV Teams", icon: "◆" },
-  { id: "sponsors", label: "Sponsors", icon: "✦" },
-  { id: "stats", label: "Stats Pipeline", icon: "◈" },
-  { id: "registrations", label: "Registrations", icon: "⊕" },
-  { id: "news", label: "News", icon: "≡" },
-  { id: "rulebook", label: "Rulebook", icon: "§" },
-  { id: "users", label: "Users", icon: "◇" },
-  { id: "audit", label: "Audit Log", icon: "◫" },
+const DASHBOARD_PAGES = [
+  { id: "", label: "Overview", icon: "▦" },
+  { id: "team", label: "Team Management", icon: "⚑" },
+  { id: "register", label: "Register a Team", icon: "＋" },
 ];
 
 function SidebarContent({
@@ -33,28 +26,19 @@ function SidebarContent({
 }) {
   return (
     <>
-      <div
-        onClick={() => onNavigate("/")}
-        className="px-5 pt-5 pb-4 border-b border-[rgba(126,130,172,0.2)] flex items-center gap-2.5 cursor-pointer flex-shrink-0"
-      >
-        <svg width="36" height="28" viewBox="0 0 36 28" fill="none">
-          <rect width="36" height="28" rx="2" fill="#7E82AC" />
-          <text x="5" y="20" fontFamily="Archivo, sans-serif" fontSize="14" fontWeight="900" fill="#0B0B0E">
-            NRV
-          </text>
-        </svg>
-        <div>
-          <div className="font-display font-bold text-[13px] text-[#E6E6E6] tracking-[2px]">NERVE</div>
-          <div className="font-mono text-[9px] text-[#888BA0] tracking-[2px]">ADMIN</div>
+      <div className="px-5 pt-5 pb-4 border-b border-[rgba(126,130,172,0.2)] flex-shrink-0">
+        <div className="font-display font-bold text-[13px] text-[#E6E6E6] tracking-[2px]">DASHBOARD</div>
+        <div className="font-mono text-[9px] text-[#888BA0] tracking-[2px] mt-0.5">
+          {user.playerTag || user.email}
         </div>
       </div>
       <nav className="flex-1 py-3.5 overflow-y-auto">
-        {ADMIN_PAGES.map((it) => {
+        {DASHBOARD_PAGES.map((it) => {
           const active = activeId === it.id;
           return (
             <div
               key={it.id}
-              onClick={() => onNavigate(it.id ? `/admin/${it.id}` : "/admin")}
+              onClick={() => onNavigate(it.id ? `/dashboard/${it.id}` : "/dashboard")}
               className="flex items-center gap-2.5 px-5 py-2.5 cursor-pointer transition-colors"
               style={{
                 background: active ? "rgba(126,130,172,0.15)" : "transparent",
@@ -91,7 +75,7 @@ function SidebarContent({
   );
 }
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, loading, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -105,14 +89,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   if (loading) return null;
 
-  if (!user || (user.role !== "admin" && user.role !== "editor")) {
+  if (!user) {
     return (
-      <AccessDenied need="The staff portal is limited to admin and editor accounts. Members and coaches use the public site and Team Management only." />
+      <div style={{ paddingTop: 110 }}>
+        <AccessDenied need="Log in to see your dashboard." />
+      </div>
     );
   }
 
-  const activeId = pathname?.replace(/^\/admin\/?/, "") ?? "";
-  const activePage = ADMIN_PAGES.find((p) => p.id === activeId);
+  const activeId = pathname?.replace(/^\/dashboard\/?/, "") ?? "";
+  const activePage = DASHBOARD_PAGES.find((p) => p.id === activeId);
 
   const navigate = (href: string) => {
     setDrawerOpen(false);
@@ -120,23 +106,26 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   };
 
   return (
-    <div className="flex min-h-screen flex-col md:flex-row">
+    <div className="flex flex-col md:flex-row" style={{ paddingTop: 64 }}>
       {/* Mobile top bar */}
-      <div className="md:hidden sticky top-0 z-[150] flex items-center gap-3 bg-[#111] border-b border-[rgba(126,130,172,0.2)] px-4 py-3">
+      <div className="md:hidden sticky z-[150] flex items-center gap-3 bg-[#111] border-b border-[rgba(126,130,172,0.2)] px-4 py-3" style={{ top: 64 }}>
         <button
           onClick={() => setDrawerOpen(true)}
-          aria-label="Open admin menu"
+          aria-label="Open dashboard menu"
           className="bg-transparent border border-[rgba(126,130,172,0.4)] text-[#BFC2DE] px-2.5 py-1.5 cursor-pointer font-mono text-[12px]"
         >
           ☰
         </button>
         <span className="font-mono text-[11px] text-[#E6E6E6] tracking-[2px] uppercase flex-1">
-          {activePage?.label ?? "Admin"}
+          {activePage?.label ?? "Dashboard"}
         </span>
       </div>
 
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex w-[222px] bg-[#111] flex-shrink-0 border-r border-[rgba(126,130,172,0.2)] flex-col sticky top-0 h-screen overflow-y-auto">
+      <aside
+        className="hidden md:flex w-[222px] bg-[#111] flex-shrink-0 border-r border-[rgba(126,130,172,0.2)] flex-col sticky overflow-y-auto"
+        style={{ top: 64, height: "calc(100vh - 64px)" }}
+      >
         <SidebarContent user={user} activeId={activeId} onNavigate={navigate} onLogout={handleLogout} />
       </aside>
 
@@ -151,7 +140,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <div className="flex justify-end px-3 pt-3">
               <button
                 onClick={() => setDrawerOpen(false)}
-                aria-label="Close admin menu"
+                aria-label="Close dashboard menu"
                 className="bg-transparent border border-[rgba(126,130,172,0.4)] text-[#BFC2DE] px-2.5 py-1 cursor-pointer font-mono text-[12px]"
               >
                 ✕

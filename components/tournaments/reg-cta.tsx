@@ -12,7 +12,7 @@ export function RegCTA({ event }: { event: NrvEvent }) {
   return (
     <div className="flex items-center gap-3 flex-wrap">
       <Link
-        href={`/register?event=${event.id}`}
+        href={`/dashboard/register?event=${event.id}`}
         className="font-mono text-[11px] tracking-[2px] uppercase px-5 py-2.5 cursor-pointer bg-[#7E82AC] border border-[#7E82AC] text-white no-underline hover:opacity-85 transition-opacity"
       >
         {rs === "waitlist" ? "Join waitlist" : "Register a team"}

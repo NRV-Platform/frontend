@@ -70,11 +70,14 @@ export function MVPNav() {
   };
 
   const isStaff = user && (user.role === "admin" || user.role === "editor");
+  const inDashboard = pathname?.startsWith("/dashboard") ?? false;
 
   return (
     <nav
       ref={ref}
-      className="fixed top-0 left-0 right-0 z-[100] bg-[rgba(14,14,14,0.92)] backdrop-blur-md border-b border-[rgba(126,130,172,0.25)] h-16 flex items-center px-4 sm:px-10"
+      className={`fixed top-0 left-0 right-0 z-[100] bg-[rgba(14,14,14,0.92)] backdrop-blur-md border-b border-[rgba(126,130,172,0.25)] h-16 items-center px-4 sm:px-10 ${
+        inDashboard ? "hidden md:flex" : "flex"
+      }`}
     >
       <div
         onClick={() => go("/")}
@@ -252,6 +255,15 @@ function AccountChip({
               {user.role}
             </div>
           </div>
+          <div
+            onClick={() => {
+              setOpen(false);
+              go("/dashboard");
+            }}
+            className="px-4 py-2.5 font-mono text-[11px] text-[#888BA0] tracking-[1px] uppercase cursor-pointer transition-all hover:text-[#E6E6E6] hover:bg-[rgba(126,130,172,0.12)]"
+          >
+            Dashboard
+          </div>
           {isStaff && (
             <div
               onClick={() => {
@@ -276,8 +288,14 @@ function AccountChip({
 }
 
 export function MVPFooter() {
+  const pathname = usePathname();
+  const inDashboard = pathname?.startsWith("/dashboard") ?? false;
   return (
-    <footer className="border-t border-[rgba(126,130,172,0.2)] bg-[#0B0B0E] px-4 sm:px-10 py-10 mt-20">
+    <footer
+      className={`border-t border-[rgba(126,130,172,0.2)] bg-[#0B0B0E] px-4 sm:px-10 py-10 mt-20 ${
+        inDashboard ? "hidden md:block" : ""
+      }`}
+    >
       <div className="max-w-[1200px] mx-auto flex items-center justify-between flex-wrap gap-4">
         <span className="font-mono text-[10px] text-[#444] tracking-[2px] uppercase">
           NERVE ESPORTS
