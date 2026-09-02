@@ -56,13 +56,11 @@ export function MVPNav() {
       children: [
         { label: "Events & Standings", href: "/tournaments" },
         { label: "Calendar", href: "/calendar" },
-        { label: "Register a Team", href: "/register" },
         { label: "Rules", href: "/rules" },
       ],
     },
     { label: "STATS", href: "/stats" },
     { label: "NEWS", href: "/news" },
-    ...(user ? [{ label: "MY TEAM", href: "/team" }] : []),
   ];
 
   const go = (h: string) => {
@@ -253,15 +251,6 @@ function AccountChip({
             <div className="font-mono text-[9px] text-[#555] tracking-[1px] mt-0.5 uppercase">
               {user.role}
             </div>
-          </div>
-          <div
-            onClick={() => {
-              setOpen(false);
-              go("/team");
-            }}
-            className="px-4 py-2.5 font-mono text-[11px] text-[#888BA0] tracking-[1px] uppercase cursor-pointer transition-all hover:text-[#E6E6E6] hover:bg-[rgba(126,130,172,0.12)]"
-          >
-            Team Management
           </div>
           {isStaff && (
             <div
