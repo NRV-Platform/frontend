@@ -1,11 +1,10 @@
 import { apiGet } from "@/lib/api-server";
 import type { NrvEvent, Rulebook } from "@/lib/types";
-import { PageShell } from "@/components/nav";
 import { RegisterForm } from "@/components/register/register-form";
 
 export const revalidate = 30;
 
-export default async function RegisterPage({
+export default async function DashboardRegisterPage({
   searchParams,
 }: {
   searchParams: Promise<{ event?: string }>;
@@ -17,12 +16,10 @@ export default async function RegisterPage({
   ]);
 
   return (
-    <PageShell>
-      <RegisterForm
-        events={events ?? []}
-        rulebookVersion={rulebook?.version ?? ""}
-        initialEventId={event}
-      />
-    </PageShell>
+    <RegisterForm
+      events={events ?? []}
+      rulebookVersion={rulebook?.version ?? ""}
+      initialEventId={event}
+    />
   );
 }

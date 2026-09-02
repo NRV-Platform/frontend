@@ -23,7 +23,7 @@ export function HeroCTA({
   return (
     <div className="mt-8 flex gap-3 justify-center flex-wrap">
       {regEvent && (
-        <Btn onClick={() => router.push(`/register?event=${regEvent.id}`)}>
+        <Btn onClick={() => router.push(`/dashboard/register?event=${regEvent.id}`)}>
           Register for {regEvent.name.split("—")[0].trim()}
         </Btn>
       )}

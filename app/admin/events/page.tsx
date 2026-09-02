@@ -20,6 +20,7 @@ import {
   fmtD,
   fmtDT,
 } from "@/components/ui/primitives";
+import { DatePicker, DateTimePicker } from "@/components/ui/date-picker";
 
 interface EventDraft {
   id?: string;
@@ -249,26 +250,24 @@ export default function AdminEventsPage() {
               />
             </Field>
             <Field label="Start date" req>
-              <Input type="date" value={editing.startDate} onChange={(e) => setEditing({ ...editing, startDate: e.target.value })} />
+              <DatePicker value={editing.startDate} onChange={(v) => setEditing({ ...editing, startDate: v })} />
             </Field>
             <Field label="End date" req>
-              <Input type="date" value={editing.endDate} onChange={(e) => setEditing({ ...editing, endDate: e.target.value })} />
+              <DatePicker value={editing.endDate} onChange={(v) => setEditing({ ...editing, endDate: v })} />
             </Field>
             <Field label="Prize (plain text)">
               <Input value={editing.prizeText} onChange={(e) => setEditing({ ...editing, prizeText: e.target.value })} />
             </Field>
             <Field label="Registration opens">
-              <Input
-                type="date"
+              <DatePicker
                 value={editing.regOpenDate}
-                onChange={(e) => setEditing({ ...editing, regOpenDate: e.target.value })}
+                onChange={(v) => setEditing({ ...editing, regOpenDate: v })}
               />
             </Field>
             <Field label="Registration closes (= roster lock)">
-              <Input
-                type="date"
+              <DatePicker
                 value={editing.regCloseDate}
-                onChange={(e) => setEditing({ ...editing, regCloseDate: e.target.value })}
+                onChange={(v) => setEditing({ ...editing, regCloseDate: v })}
               />
             </Field>
           </div>
@@ -356,7 +355,7 @@ export default function AdminEventsPage() {
                   <Select value={nm.format} onChange={(e) => setNm({ ...nm, format: e.target.value })} options={["BO1", "BO3", "BO5"]} />
                 </Field>
                 <Field label="Starts at" req>
-                  <Input type="datetime-local" value={nm.startsAt} onChange={(e) => setNm({ ...nm, startsAt: e.target.value })} />
+                  <DateTimePicker value={nm.startsAt} onChange={(v) => setNm({ ...nm, startsAt: v })} />
                 </Field>
                 <Field label="Stream URL">
                   <Input value={nm.streamUrl} onChange={(e) => setNm({ ...nm, streamUrl: e.target.value })} placeholder="https://twitch.tv/…" />

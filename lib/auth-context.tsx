@@ -8,57 +8,79 @@ import {
   useState,
 } from "react";
 import { api, ApiError, clearTokens, getAccessToken, setTokens } from "./api";
-import type { AuthResponse, PublicUser } from "./types";
+import type { AuthResponse, PublicUser, User } from "./types";
 
 const USER_KEY = "nrv_user";
 
-function loadStoredUser(): PublicUser | null {
+function loadStoredUser(): User | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = localStorage.getItem(USER_KEY);
-    return raw ? (JSON.parse(raw) as PublicUser) : null;
+    return raw ? (JSON.parse(raw) as User) : null;
   } catch {
     return null;
   }
 }
 
-function storeUser(user: PublicUser | null) {
+function storeUser(user: User | null) {
   if (typeof window === "undefined") return;
   if (user) localStorage.setItem(USER_KEY, JSON.stringify(user));
   else localStorage.removeItem(USER_KEY);
 }
 
 interface AuthContextValue {
-  user: PublicUser | null;
+  user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
-  signup: (email: string, password: string, name: string) => Promise<{ ok: boolean; error?: string }>;
+  login: (
+    email: string,
+    password: string
+  ) => Promise<{ ok: boolean; error?: string; user?: PublicUser }>;
+  signup: (
+    email: string,
+    password: string,
+    name: string
+  ) => Promise<{ ok: boolean; error?: string; user?: PublicUser }>;
   logout: () => void;
-  setUser: (user: PublicUser | null) => void;
+  setUser: (user: User | null) => void;
+  refreshUser: () => Promise<User | null>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUserState] = useState<PublicUser | null>(null);
+  const [user, setUserState] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const setUser = useCallback((u: PublicUser | null) => {
+  const setUser = useCallback((u: User | null) => {
     setUserState(u);
     storeUser(u);
   }, []);
 
+  const refreshUser = useCallback(async () => {
+    if (!getAccessToken()) return null;
+    try {
+      const fresh = await api.get<User>("/users/me");
+      setUser(fresh);
+      return fresh;
+    } catch {
+      return null;
+    }
+  }, [setUser]);
+
   useEffect(() => {
     void (async () => {
       const token = getAccessToken();
-      const stored = loadStoredUser();
-      if (token && stored) {
-        setUserState(stored);
-      } else if (!token) {
+      if (!token) {
         storeUser(null);
+        setLoading(false);
+        return;
       }
+      const stored = loadStoredUser();
+      if (stored) setUserState(stored);
+      await refreshUser();
       setLoading(false);
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const login = useCallback(
@@ -71,7 +93,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         );
         setTokens(res.accessToken, res.refreshToken);
         setUser(res.user);
-        return { ok: true };
+        return { ok: true, user: res.user };
       } catch (e) {
         const msg = e instanceof ApiError ? e.message : "Login failed";
         return { ok: false, error: msg };
@@ -90,7 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         );
         setTokens(res.accessToken, res.refreshToken);
         setUser(res.user);
-        return { ok: true };
+        return { ok: true, user: res.user };
       } catch (e) {
         const msg = e instanceof ApiError ? e.message : "Signup failed";
         return { ok: false, error: msg };
@@ -105,7 +127,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [setUser]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout, setUser }}>
+    <AuthContext.Provider
+      value={{ user, loading, login, signup, logout, setUser, refreshUser }}
+    >
       {children}
     </AuthContext.Provider>
   );

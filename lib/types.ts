@@ -22,6 +22,8 @@ export interface PublicUser {
 
 export interface User extends PublicUser {
   discordId?: string | null;
+  discordUsername?: string | null;
+  discordConnectedAt?: string | null;
   suspended?: boolean;
   riotGameName?: string | null;
   riotTagLine?: string | null;

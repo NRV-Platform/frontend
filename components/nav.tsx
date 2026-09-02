@@ -17,9 +17,11 @@ export function MVPNav() {
   const { user, logout } = useAuth();
   const [open, setOpen] = useState<number | null>(null);
   const [mob, setMob] = useState(false);
-  const [acctOpen, setAcctOpen] = useState(false);
+  const [acctOpenDesktop, setAcctOpenDesktop] = useState(false);
+  const [acctOpenMobile, setAcctOpenMobile] = useState(false);
   const ref = useRef<HTMLElement>(null);
-  const acctRef = useRef<HTMLDivElement>(null);
+  const acctRefDesktop = useRef<HTMLDivElement>(null);
+  const acctRefMobile = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const h = (e: MouseEvent) => {
@@ -27,8 +29,11 @@ export function MVPNav() {
         setOpen(null);
         setMob(false);
       }
-      if (acctRef.current && !acctRef.current.contains(e.target as Node)) {
-        setAcctOpen(false);
+      if (acctRefDesktop.current && !acctRefDesktop.current.contains(e.target as Node)) {
+        setAcctOpenDesktop(false);
+      }
+      if (acctRefMobile.current && !acctRefMobile.current.contains(e.target as Node)) {
+        setAcctOpenMobile(false);
       }
     };
     document.addEventListener("mousedown", h);
@@ -51,13 +56,11 @@ export function MVPNav() {
       children: [
         { label: "Events & Standings", href: "/tournaments" },
         { label: "Calendar", href: "/calendar" },
-        { label: "Register a Team", href: "/register" },
         { label: "Rules", href: "/rules" },
       ],
     },
     { label: "STATS", href: "/stats" },
     { label: "NEWS", href: "/news" },
-    ...(user ? [{ label: "MY TEAM", href: "/team" }] : []),
   ];
 
   const go = (h: string) => {
@@ -67,6 +70,9 @@ export function MVPNav() {
   };
 
   const isStaff = user && (user.role === "admin" || user.role === "editor");
+  const inDashboard = pathname?.startsWith("/dashboard") ?? false;
+
+  if (inDashboard) return null;
 
   return (
     <nav
@@ -140,9 +146,9 @@ export function MVPNav() {
         <AccountChip
           user={user}
           isStaff={!!isStaff}
-          open={acctOpen}
-          setOpen={setAcctOpen}
-          acctRef={acctRef}
+          open={acctOpenDesktop}
+          setOpen={setAcctOpenDesktop}
+          acctRef={acctRefDesktop}
           onLogout={() => {
             logout();
             go("/");
@@ -154,9 +160,9 @@ export function MVPNav() {
         <AccountChip
           user={user}
           isStaff={!!isStaff}
-          open={acctOpen}
-          setOpen={setAcctOpen}
-          acctRef={acctRef}
+          open={acctOpenMobile}
+          setOpen={setAcctOpenMobile}
+          acctRef={acctRefMobile}
           onLogout={() => {
             logout();
             go("/");
@@ -252,11 +258,11 @@ function AccountChip({
           <div
             onClick={() => {
               setOpen(false);
-              go("/team");
+              go("/dashboard");
             }}
             className="px-4 py-2.5 font-mono text-[11px] text-[#888BA0] tracking-[1px] uppercase cursor-pointer transition-all hover:text-[#E6E6E6] hover:bg-[rgba(126,130,172,0.12)]"
           >
-            Team Management
+            Dashboard
           </div>
           {isStaff && (
             <div
@@ -282,6 +288,9 @@ function AccountChip({
 }
 
 export function MVPFooter() {
+  const pathname = usePathname();
+  const inDashboard = pathname?.startsWith("/dashboard") ?? false;
+  if (inDashboard) return null;
   return (
     <footer className="border-t border-[rgba(126,130,172,0.2)] bg-[#0B0B0E] px-4 sm:px-10 py-10 mt-20">
       <div className="max-w-[1200px] mx-auto flex items-center justify-between flex-wrap gap-4">
