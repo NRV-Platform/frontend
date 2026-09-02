@@ -64,6 +64,7 @@ export default function AdminEventsPage() {
   );
   const [forfeit, setForfeit] = useState<{ match: Match; winner: string } | null>(null);
   const [del, setDel] = useState<Match | null>(null);
+  const [delEvent, setDelEvent] = useState<NrvEvent | null>(null);
 
   const loadEvents = async () => {
     const [ev, tm] = await Promise.all([
@@ -188,6 +189,19 @@ export default function AdminEventsPage() {
       if (sel) loadMatches(sel);
     } catch (e) {
       toast(e instanceof ApiError ? e.message : "Failed to delete match", "error");
+    }
+  };
+
+  const doDeleteEvent = async () => {
+    if (!delEvent) return;
+    try {
+      await api.delete(`/events/${delEvent.id}`);
+      toast("Event deleted");
+      setDelEvent(null);
+      setSel(null);
+      loadEvents();
+    } catch (e) {
+      toast(e instanceof ApiError ? e.message : "Failed to delete event", "error");
     }
   };
 
@@ -323,6 +337,13 @@ export default function AdminEventsPage() {
                 }
               >
                 + Match
+              </Btn>
+              <Btn
+                variant="danger"
+                style={{ padding: "6px 14px" }}
+                onClick={() => setDelEvent(ev)}
+              >
+                Delete
               </Btn>
             </div>
           </Card>
@@ -567,6 +588,18 @@ export default function AdminEventsPage() {
         }
         onCancel={() => setDel(null)}
         onConfirm={doDelete}
+      />
+
+      <ConfirmModal
+        open={!!delEvent}
+        title="Delete event"
+        confirmLabel="Delete event"
+        body={
+          delEvent &&
+          `Delete "${delEvent.name}"? This only works if the event has no matches and no active registrations — otherwise the deletion will be refused.`
+        }
+        onCancel={() => setDelEvent(null)}
+        onConfirm={doDeleteEvent}
       />
     </div>
   );
