@@ -5,11 +5,14 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/components/ui/toast";
 import { api, ApiError } from "@/lib/api";
-import { regState, GAMES } from "@/lib/derived";
-import type { NrvEvent, Team } from "@/lib/types";
+import { regState, GAMES, GAME_ROLES } from "@/lib/derived";
+import type { NrvEvent, Team, TeamMembership } from "@/lib/types";
 import {
   PageHead,
+  SectionLabel,
   Card,
+  Table,
+  Pill,
   Field,
   Input,
   Select,
@@ -18,6 +21,9 @@ import {
   Spark,
   fmtD,
 } from "@/components/ui/primitives";
+
+const MIN_ROSTER_SIZE = 5;
+const MAX_ROSTER_SIZE = 8;
 
 export function RegisterForm({
   events,
@@ -44,6 +50,8 @@ export function RegisterForm({
   const [errs, setErrs] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<"ok" | "waitlist" | null>(null);
+  const [tagInput, setTagInput] = useState("");
+  const [posEdit, setPosEdit] = useState<{ userId: string; position: string } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -88,10 +96,66 @@ export function RegisterForm({
     }
   };
 
+  const addMember = async () => {
+    if (!myTeam) return;
+    if (!tagInput.trim()) {
+      toast("Enter a player tag", "error");
+      return;
+    }
+    setBusy(true);
+    try {
+      const updated = await api.post<Team>(`/teams/${myTeam.id}/members`, { playerTag: tagInput.trim() });
+      setMyTeam(updated);
+      toast("Player added to roster");
+      setTagInput("");
+    } catch (e) {
+      toast(e instanceof ApiError ? e.message : "Failed to add player", "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const updateMember = async (userId: string, data: { teamRole?: string; position?: string }) => {
+    if (!myTeam) return;
+    setBusy(true);
+    try {
+      const updated = await api.patch<Team>(`/teams/${myTeam.id}/members/${userId}`, data);
+      setMyTeam(updated);
+      toast("Roster updated");
+      setPosEdit(null);
+    } catch (e) {
+      toast(e instanceof ApiError ? e.message : "Failed to update member", "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const removeMember = async (userId: string) => {
+    if (!myTeam) return;
+    setBusy(true);
+    try {
+      const updated = await api.delete<Team>(`/teams/${myTeam.id}/members/${userId}`);
+      setMyTeam(updated);
+      toast("Player removed from roster");
+    } catch (e) {
+      toast(e instanceof ApiError ? e.message : "Failed to remove member", "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const rosterSize = myTeam?.memberships?.length ?? 0;
+
   const submit = async () => {
     const e: string[] = [];
     if (!ev) e.push("Pick an event.");
     if (!myTeam) e.push("You need a team before registering.");
+    if (myTeam && rosterSize < MIN_ROSTER_SIZE) {
+      e.push(`Your roster needs at least ${MIN_ROSTER_SIZE} players to register (currently has ${rosterSize}).`);
+    }
+    if (myTeam && rosterSize > MAX_ROSTER_SIZE) {
+      e.push(`Your roster exceeds the maximum of ${MAX_ROSTER_SIZE} players (currently has ${rosterSize}).`);
+    }
     if (!contactEmail.trim()) e.push("Team contact email is required.");
     if (!acks.tos) e.push("The Terms of Service / Privacy Policy acknowledgment is required.");
     if (!acks.emailConsent) e.push("Email consent acknowledgment is required.");
@@ -191,14 +255,132 @@ export function RegisterForm({
           {!teamChecked ? (
             <div className="font-mono text-[11px] text-[#555]">Checking your team…</div>
           ) : myTeam ? (
-            <Card pad={18}>
-              <div className="font-display font-bold text-[15px] text-[#E6E6E6] uppercase">
-                {myTeam.name}
-              </div>
-              <div className="font-mono text-[10px] text-[#555] mt-1">
-                {myTeam.tag} · {myTeam.game}
-              </div>
-            </Card>
+            <div>
+              <Card pad={18} className="mb-4" style={{ marginBottom: 16 }}>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span className="w-1 h-6" style={{ background: myTeam.color ?? "#7E82AC" }} />
+                  <div>
+                    <div className="font-display font-bold text-[15px] text-[#E6E6E6] uppercase">
+                      {myTeam.name}
+                    </div>
+                    <div className="font-mono text-[10px] text-[#555] mt-1">
+                      {myTeam.tag} · {myTeam.game}
+                    </div>
+                  </div>
+                  <Pill
+                    color={
+                      rosterSize < MIN_ROSTER_SIZE
+                        ? "#f87171"
+                        : rosterSize > MAX_ROSTER_SIZE
+                        ? "#f87171"
+                        : "#4ade80"
+                    }
+                  >
+                    {rosterSize}/{MAX_ROSTER_SIZE} roster
+                  </Pill>
+                </div>
+              </Card>
+
+              {rosterSize < MIN_ROSTER_SIZE && (
+                <div className="font-mono text-[11px] text-[#FF6A39] leading-[1.7] mb-4" style={{ marginBottom: 16 }}>
+                  Add at least {MIN_ROSTER_SIZE - rosterSize} more player
+                  {MIN_ROSTER_SIZE - rosterSize === 1 ? "" : "s"} before you can submit this registration.
+                </div>
+              )}
+
+              <SectionLabel>Roster</SectionLabel>
+              <Card pad={0}>
+                <Table
+                  cols={[
+                    {
+                      h: "Player",
+                      render: (m: TeamMembership) => (
+                        <div>
+                          <div className="text-[#E6E6E6] font-display font-bold text-[13px] tracking-[1px] uppercase">
+                            {m.user?.name ?? "—"}
+                          </div>
+                          <div className="text-[10px] text-[#555]">{m.user?.playerTag}</div>
+                        </div>
+                      ),
+                    },
+                    {
+                      h: "Position",
+                      render: (m: TeamMembership) =>
+                        posEdit?.userId === m.userId ? (
+                          <div className="flex gap-1.5 items-center">
+                            <Select
+                              value={posEdit.position}
+                              onChange={(e) => setPosEdit({ userId: m.userId, position: e.target.value })}
+                              options={["", ...(GAME_ROLES[myTeam.game] ?? [])]}
+                              style={{ width: 140, padding: "5px 8px", fontSize: 10 }}
+                            />
+                            <button
+                              onClick={() => updateMember(m.userId, { position: posEdit.position })}
+                              className="font-mono text-[9px] text-[#4ade80] cursor-pointer bg-transparent border-none"
+                            >
+                              Save
+                            </button>
+                          </div>
+                        ) : (
+                          <span
+                            onClick={() => setPosEdit({ userId: m.userId, position: m.position ?? "" })}
+                            className="text-[#888BA0] text-[10px] tracking-[1px] uppercase cursor-pointer"
+                          >
+                            {m.position || "—"}
+                          </span>
+                        ),
+                    },
+                    {
+                      h: "Role",
+                      render: (m: TeamMembership) => (
+                        <Select
+                          value={m.teamRole}
+                          onChange={(e) => updateMember(m.userId, { teamRole: e.target.value })}
+                          options={["coach", "captain", "member"]}
+                          style={{ width: 110, padding: "5px 8px", fontSize: 10 }}
+                        />
+                      ),
+                    },
+                    {
+                      h: "",
+                      right: true,
+                      render: (m: TeamMembership) => (
+                        <button
+                          onClick={() => removeMember(m.userId)}
+                          disabled={busy}
+                          className="bg-transparent border border-[rgba(248,113,113,0.35)] text-[#f87171] font-mono text-[9px] tracking-[1px] px-2.5 py-1 cursor-pointer uppercase"
+                        >
+                          Remove
+                        </button>
+                      ),
+                    },
+                  ]}
+                  rows={myTeam.memberships ?? []}
+                  keyFn={(m) => m.id}
+                />
+              </Card>
+
+              <Card pad={18} className="mt-3.5" style={{ marginTop: 14 }}>
+                <div className="font-mono text-[9px] tracking-[3px] text-[#555] uppercase mb-3.5">
+                  Add player by tag
+                </div>
+                <div className="flex gap-2.5 flex-wrap items-end">
+                  <Field label="Player tag" className="flex-[2_1_180px]">
+                    <Input
+                      value={tagInput}
+                      onChange={(e) => setTagInput(e.target.value)}
+                      placeholder="Name#1234"
+                    />
+                  </Field>
+                  <Btn onClick={addMember} disabled={busy}>
+                    Add
+                  </Btn>
+                </div>
+                <div className="font-mono text-[10px] text-[#444] leading-[1.7] mt-3.5">
+                  The player must already have an NRV account and not already belong to a team.
+                </div>
+              </Card>
+            </div>
           ) : (
             <Card pad={20}>
               <div className="font-mono text-[10px] text-[#555] leading-[1.7] mb-4">
@@ -305,7 +487,11 @@ export function RegisterForm({
           )}
 
           <div className="mt-7 flex items-center gap-4 flex-wrap">
-            <Btn onClick={submit} disabled={busy || rs === "closed"} style={{ padding: "13px 32px" }}>
+            <Btn
+              onClick={submit}
+              disabled={busy || rs === "closed" || !myTeam || rosterSize < MIN_ROSTER_SIZE || rosterSize > MAX_ROSTER_SIZE}
+              style={{ padding: "13px 32px" }}
+            >
               {rs === "closed" ? "Registration closed" : rs === "waitlist" ? "Join waitlist" : "Submit registration"}
             </Btn>
             {rs !== "closed" && ev && (

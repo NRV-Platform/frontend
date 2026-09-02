@@ -104,10 +104,11 @@ export default function AdminEventsPage() {
       return;
     }
     try {
-      if (editing.id) {
-        await api.patch(`/events/${editing.id}`, editing);
+      const { id, ...payload } = editing;
+      if (id) {
+        await api.patch(`/events/${id}`, payload);
       } else {
-        await api.post("/events", editing);
+        await api.post("/events", payload);
       }
       toast("Event saved");
       setEditing(null);
