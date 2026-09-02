@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { ReactNode, InputHTMLAttributes, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
 
 export function Spark({ size = 12 }: { size?: number }) {
@@ -131,6 +132,63 @@ const inputBase =
 export function Input(props: InputHTMLAttributes<HTMLInputElement>) {
   const { className = "", ...rest } = props;
   return <input {...rest} className={`${inputBase} ${className}`} />;
+}
+
+export function PasswordInput({
+  blockClipboard,
+  onPaste,
+  onCopy,
+  onCut,
+  onDrop,
+  ...props
+}: InputHTMLAttributes<HTMLInputElement> & { blockClipboard?: boolean }) {
+  const { className = "", ...rest } = props;
+  const [visible, setVisible] = useState(false);
+  const blockEvent = (e: React.SyntheticEvent) => e.preventDefault();
+  return (
+    <div className="relative">
+      <input
+        {...rest}
+        type={visible ? "text" : "password"}
+        onPaste={blockClipboard ? blockEvent : onPaste}
+        onCopy={blockClipboard ? blockEvent : onCopy}
+        onCut={blockClipboard ? blockEvent : onCut}
+        onDrop={blockClipboard ? blockEvent : onDrop}
+        autoComplete={blockClipboard ? "off" : rest.autoComplete}
+        className={`${inputBase} pr-10 ${className}`}
+      />
+      <button
+        type="button"
+        onClick={() => setVisible((v) => !v)}
+        aria-label={visible ? "Hide password" : "Show password"}
+        aria-pressed={visible}
+        className="absolute right-0 top-0 bottom-0 px-3 flex items-center bg-transparent border-none cursor-pointer text-[#888BA0] hover:text-[#E6E6E6] transition-colors"
+      >
+        {visible ? (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <path
+              d="M3 3l18 18M10.58 10.58a2 2 0 002.83 2.83M9.88 4.24A9.9 9.9 0 0112 4c5 0 9.27 3.11 11 8-.62 1.73-1.68 3.29-3.06 4.53M6.1 6.1C4.28 7.32 2.86 9.03 2 12c1.06 3.19 3.31 5.7 6.14 7.14"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        ) : (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <path
+              d="M2 12c1.73-4.89 6-8 10-8s8.27 3.11 10 8c-1.73 4.89-6 8-10 8s-8.27-3.11-10-8z"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.6" />
+          </svg>
+        )}
+      </button>
+    </div>
+  );
 }
 
 export function TextArea(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
