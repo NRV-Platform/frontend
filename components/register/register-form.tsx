@@ -130,14 +130,12 @@ function RosterRow({
 }
 
 function StaffRow({
-  index,
   member,
   onAdd,
   onSetRole,
   onRemove,
   busy,
 }: {
-  index: number;
   member?: TeamMembership;
   onAdd: (tag: string, role: string) => void;
   onSetRole: (role: string) => void;
@@ -167,8 +165,8 @@ function StaffRow({
             else setRole(e.target.value);
           }}
           options={[
-            { value: "captain", label: "Captain" },
             { value: "coach", label: "Coach" },
+            { value: "assistant_coach", label: "Assistant Coach" },
           ]}
         />
       </Field>
@@ -328,8 +326,8 @@ export function RegisterForm({
   };
 
   const roster = myTeam?.memberships ?? [];
-  const staffMembers = roster.filter((m) => m.teamRole === "coach");
-  const nonStaffMembers = roster.filter((m) => m.teamRole !== "coach");
+  const staffMembers = roster.filter((m) => m.teamRole === "coach" || m.teamRole === "assistant_coach");
+  const nonStaffMembers = roster.filter((m) => m.teamRole !== "coach" && m.teamRole !== "assistant_coach");
   const rosterSize = roster.length;
   const captainMember = roster.find((m) => m.teamRole === "captain");
 
@@ -502,7 +500,6 @@ export function RegisterForm({
               {staffMembers.map((m) => (
                 <StaffRow
                   key={m.id}
-                  index={staffMembers.indexOf(m)}
                   member={m}
                   busy={busy}
                   onAdd={() => {}}
@@ -510,7 +507,7 @@ export function RegisterForm({
                   onRemove={() => removeMember(m.userId)}
                 />
               ))}
-              <StaffRow index={staffMembers.length} busy={busy} onAdd={addStaffMember} onSetRole={() => {}} onRemove={() => {}} />
+              <StaffRow busy={busy} onAdd={addStaffMember} onSetRole={() => {}} onRemove={() => {}} />
 
               <SectionHeading>Players</SectionHeading>
               {Array.from({ length: Math.max(MIN_ROSTER_SIZE, nonStaffMembers.length) }).map((_, i) => {
@@ -525,22 +522,31 @@ export function RegisterForm({
                     isCaptain={member?.teamRole === "captain"}
                     busy={busy}
                     onAdd={addMember}
+                    onRemove={member ? () => removeMember(member.userId) : undefined}
                     onSetCaptain={(checked) => setPlayerCaptain(member, checked)}
                   />
                 );
               })}
 
               <SectionHeading>Substitutes</SectionHeading>
-              {Array.from({ length: subSlots }).map((_, i) => (
-                <RosterRow
-                  key={`sub-slot-${i}`}
-                  index={i}
-                  title="Substitute"
-                  busy={busy}
-                  onAdd={addMember}
-                  onRemove={() => setSubSlots((n) => Math.max(0, n - 1))}
-                />
-              ))}
+              {Array.from({ length: subSlots }).map((_, i) => {
+                const member = nonStaffMembers[MIN_ROSTER_SIZE + i];
+                return (
+                  <RosterRow
+                    key={member?.id ?? `sub-slot-${i}`}
+                    index={i}
+                    title="Substitute"
+                    member={member}
+                    busy={busy}
+                    onAdd={addMember}
+                    onRemove={
+                      member
+                        ? () => removeMember(member.userId)
+                        : () => setSubSlots((n) => Math.max(0, n - 1))
+                    }
+                  />
+                );
+              })}
               {subSlots < MAX_SUBS && (
                 <Btn variant="ghost" onClick={() => setSubSlots((n) => n + 1)} style={{ padding: "7px 14px" }}>
                   + Add substitute ({subSlots}/{MAX_SUBS})

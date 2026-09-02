@@ -1,5 +1,5 @@
 export type SiteRole = "admin" | "editor" | "user";
-export type TeamRole = "coach" | "captain" | "member";
+export type TeamRole = "coach" | "assistant_coach" | "captain" | "member";
 export type RegistrationStatus = "pending" | "approved" | "rejected" | "waitlist";
 export type SubRequestStatus = "pending" | "approved" | "denied";
 export type EventFormat = "round_robin" | "single_elim" | "double_elim";

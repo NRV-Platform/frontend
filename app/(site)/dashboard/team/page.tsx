@@ -177,12 +177,22 @@ export default function TeamManagementPage() {
                   <Select
                     value={m.teamRole}
                     onChange={(e) => updateMember(m.userId, { teamRole: e.target.value })}
-                    options={["coach", "captain", "member"]}
-                    style={{ width: 110, padding: "5px 8px", fontSize: 10 }}
+                    options={["coach", "assistant_coach", "captain", "member"]}
+                    style={{ width: 130, padding: "5px 8px", fontSize: 10 }}
                   />
                 ) : (
-                  <Pill color={m.teamRole === "coach" ? "#4ade80" : m.teamRole === "captain" ? "#BFC2DE" : "#555"}>
-                    {m.teamRole}
+                  <Pill
+                    color={
+                      m.teamRole === "coach"
+                        ? "#4ade80"
+                        : m.teamRole === "assistant_coach"
+                        ? "#4ade80"
+                        : m.teamRole === "captain"
+                        ? "#BFC2DE"
+                        : "#555"
+                    }
+                  >
+                    {m.teamRole.replace("_", " ")}
                   </Pill>
                 ),
             },
