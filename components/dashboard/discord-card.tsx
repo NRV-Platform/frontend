@@ -18,7 +18,19 @@ export function DiscordCard({ user }: { user: User }) {
   const connect = async () => {
     setBusy(true);
     try {
-      const { url } = await api.get<{ url: string }>("/users/me/discord/auth-url");
+      const { url, mock } = await api.get<{ url: string | null; mock: boolean }>(
+        "/users/me/discord/auth-url"
+      );
+      if (mock || !url) {
+        // No real Discord application is configured in this environment —
+        // skip the redirect (Discord would reject the placeholder client_id)
+        // and connect directly with a synthetic code the mock exchange accepts.
+        await api.post("/users/me/discord/connect", { code: `dev-${Date.now()}` });
+        await refreshUser();
+        toast("Discord account linked (dev mode — no live Discord app configured)");
+        setBusy(false);
+        return;
+      }
       sessionStorage.setItem("nrv_discord_return_to", window.location.pathname);
       window.location.href = url;
     } catch (e) {
