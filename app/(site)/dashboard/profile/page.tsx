@@ -47,7 +47,7 @@ export default function DashboardProfilePage() {
       <SectionLabel>Connected Accounts</SectionLabel>
       <div className="nrv-grid-2">
         <RiotCard user={user} />
-        <DiscordCard />
+        <DiscordCard user={user} />
       </div>
     </div>
   );

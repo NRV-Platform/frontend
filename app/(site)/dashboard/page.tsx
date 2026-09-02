@@ -1,14 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
 import type { PlayerStatRow, Team } from "@/lib/types";
-import { PageHead, SectionLabel, Card, Pill } from "@/components/ui/primitives";
+import { PageHead, SectionLabel, Card, Pill, Btn } from "@/components/ui/primitives";
 import { StatCard } from "@/components/admin/shared";
 
 export default function DashboardOverviewPage() {
   const { user } = useAuth();
+  const router = useRouter();
   const [team, setTeam] = useState<Team | null>(null);
   const [stats, setStats] = useState<PlayerStatRow | null>(null);
   const [checked, setChecked] = useState(false);
@@ -48,10 +50,34 @@ export default function DashboardOverviewPage() {
   if (!user || !checked) return null;
 
   const myMembership = team?.memberships?.find((m) => m.userId === user.id);
+  const missing = [
+    !user.riotConnectedAt && "Riot",
+    !user.discordConnectedAt && "Discord",
+  ].filter(Boolean) as string[];
 
   return (
     <div>
       <PageHead kicker="Account" title="Overview" sub={`Welcome back, ${user.name}.`} />
+
+      {missing.length > 0 && (
+        <Card
+          pad={18}
+          className="mb-9 flex items-center gap-4 flex-wrap"
+          style={{ marginBottom: 36, borderColor: "rgba(251,191,36,0.4)" }}
+        >
+          <div className="flex-1 min-w-[220px]">
+            <div className="font-display font-bold text-[13px] tracking-[1px] text-[#fbbf24] uppercase mb-1">
+              Connect {missing.join(" & ")} to compete
+            </div>
+            <div className="font-mono text-[11px] text-[#888BA0] leading-[1.6]">
+              You need a linked {missing.join(" and ")} account before you can create or
+              register a team — tournaments sync stats from Riot and coordinate through
+              Discord.
+            </div>
+          </div>
+          <Btn onClick={() => router.push("/dashboard/profile")}>Connect now</Btn>
+        </Card>
+      )}
 
       <SectionLabel>My Stats</SectionLabel>
       <div className="flex gap-3 flex-wrap mb-2">
