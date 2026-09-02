@@ -9,9 +9,9 @@ import type { PublicUser } from "@/lib/types";
 
 const DASHBOARD_PAGES = [
   { id: "", label: "Overview", icon: "▦" },
-  { id: "profile", label: "Profile", icon: "◇" },
   { id: "team", label: "Team Management", icon: "⚑" },
   { id: "register", label: "Register a Team", icon: "＋" },
+  { id: "profile", label: "Profile", icon: "◇" },
 ];
 
 function SidebarContent({
