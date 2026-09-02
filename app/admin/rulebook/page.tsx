@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import { useToast } from "@/components/ui/toast";
 import { api, ApiError } from "@/lib/api";
 import type { Rulebook } from "@/lib/types";
-import { wikiFlatten, WikiMarkdown } from "@/components/rulebook/wiki-markdown";
-import { Input, Btn, ConfirmModal, fmtD } from "@/components/ui/primitives";
+import { wikiFlatten } from "@/components/rulebook/wiki-markdown";
+import { PageEditor } from "@/components/rulebook/page-editor";
+import { ConfirmModal, fmtD } from "@/components/ui/primitives";
 
 const treeIconBtnClass =
   "font-mono text-[11px] leading-none bg-transparent border border-[rgba(126,130,172,0.3)] text-[#888BA0] w-5 h-5 cursor-pointer flex items-center justify-center p-0";
@@ -14,10 +15,6 @@ export default function AdminRulebookPage() {
   const toast = useToast();
   const [rb, setRb] = useState<Rulebook | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [draftTitle, setDraftTitle] = useState("");
-  const [draftBody, setDraftBody] = useState("");
-  const [note, setNote] = useState("");
-  const [mode, setMode] = useState<"edit" | "preview">("edit");
   const [renaming, setRenaming] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<{ kind: "section" | "page"; sectionId: string; pageId?: string; label: string } | null>(
     null
@@ -33,8 +30,9 @@ export default function AdminRulebookPage() {
   };
 
   useEffect(() => {
-    load(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    void (async () => {
+      await load(false);
+    })();
   }, []);
 
   const all = rb ? wikiFlatten(rb) : [];
@@ -47,37 +45,6 @@ export default function AdminRulebookPage() {
     return null;
   };
   const current = findPage(activeId);
-
-  useEffect(() => {
-    setDraftTitle(current?.page.title ?? "");
-    setDraftBody(current?.page.body ?? "");
-    setMode("edit");
-    setNote("");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeId]);
-
-  const dirty = !!current && (draftTitle !== current.page.title || draftBody !== current.page.body);
-  const wordCount = draftBody.split(/\s+/).filter(Boolean).length;
-
-  const save = async () => {
-    if (!dirty || !current) return;
-    if (!note.trim()) {
-      toast("A changelog note is required to save", "error");
-      return;
-    }
-    try {
-      await api.patch(`/rulebook/pages/${current.page.id}`, {
-        title: draftTitle,
-        body: draftBody,
-        note: note.trim(),
-      });
-      toast("Saved");
-      setNote("");
-      await load();
-    } catch (e) {
-      toast(e instanceof ApiError ? e.message : "Failed to save page", "error");
-    }
-  };
 
   const addSection = async () => {
     try {
@@ -142,25 +109,6 @@ export default function AdminRulebookPage() {
             </span>
           </div>
         </div>
-        <div className="flex gap-2 items-center flex-wrap">
-          {dirty && (
-            <Input
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="Changelog note (required to save)"
-              style={{ width: 260 }}
-            />
-          )}
-          {dirty && (
-            <span className="font-mono text-[9px] text-[#FF6A39] tracking-[2px] inline-flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#FF6A39]" />
-              UNSAVED
-            </span>
-          )}
-          <Btn disabled={!dirty} style={{ padding: "7px 14px" }} onClick={save}>
-            Save (bumps version)
-          </Btn>
-        </div>
       </div>
       <div className="grid gap-4 flex-1 min-h-0" style={{ gridTemplateColumns: "260px 1fr" }}>
         <div className="bg-[#1A1A1A] border border-[rgba(126,130,172,0.2)] flex flex-col min-h-0">
@@ -224,7 +172,6 @@ export default function AdminRulebookPage() {
                         style={{ color: on ? "#E6E6E6" : "#888BA0" }}
                       >
                         {p.title}
-                        {on && dirty ? " •" : ""}
                       </span>
                       <button
                         title="Delete page"
@@ -250,66 +197,13 @@ export default function AdminRulebookPage() {
             + Add Chapter
           </button>
         </div>
-        <div className="bg-[#1A1A1A] border border-[rgba(126,130,172,0.2)] flex flex-col min-h-0">
-          {current ? (
-            <>
-              <div className="border-b border-[rgba(126,130,172,0.2)]">
-                <div className="px-4.5 pt-2.5 font-mono text-[9px] text-[#555] tracking-[2px] uppercase" style={{ padding: "10px 18px 0" }}>
-                  {current.section.title}
-                </div>
-                <input
-                  value={draftTitle}
-                  onChange={(e) => setDraftTitle(e.target.value)}
-                  placeholder="Page title"
-                  className="w-full bg-transparent border-none text-[#E6E6E6] font-display font-bold text-[22px] outline-none"
-                  style={{ padding: "8px 18px 14px", letterSpacing: "0.5px" }}
-                />
-              </div>
-              <div className="px-3.5 py-1.5 border-b border-[rgba(126,130,172,0.2)] flex gap-1.5 items-center">
-                <div className="flex gap-1">
-                  {(["edit", "preview"] as const).map((m) => (
-                    <button
-                      key={m}
-                      onClick={() => setMode(m)}
-                      className="font-mono text-[10px] tracking-[2px] uppercase px-3 py-1 cursor-pointer border border-[rgba(126,130,172,0.3)]"
-                      style={{
-                        background: mode === m ? "rgba(126,130,172,0.2)" : "transparent",
-                        color: mode === m ? "#E6E6E6" : "#888BA0",
-                      }}
-                    >
-                      {m}
-                    </button>
-                  ))}
-                </div>
-                <div className="flex-1" />
-                <span className="font-mono text-[9px] text-[#444] tracking-[1px]">
-                  {draftBody.length} CHARS · {wordCount} WORDS
-                </span>
-              </div>
-              {mode === "edit" ? (
-                <textarea
-                  value={draftBody}
-                  onChange={(e) => setDraftBody(e.target.value)}
-                  spellCheck={false}
-                  placeholder="Write in Markdown — # Heading, ## Subheading, - bullet, **bold**"
-                  className="flex-1 bg-transparent border-none text-[#E6E6E6] font-mono text-[13px] leading-[1.85] outline-none resize-none p-5"
-                />
-              ) : (
-                <div className="flex-1 overflow-y-auto p-6" style={{ padding: "24px 28px" }}>
-                  <WikiMarkdown text={draftBody} />
-                </div>
-              )}
-              <div className="px-4.5 py-2 border-t border-[rgba(126,130,172,0.2)] font-mono text-[9px] text-[#444] tracking-[1px] flex justify-between">
-                <span>MARKDOWN · # H1 · ## H2 · - LIST · **BOLD**</span>
-                <span>{dirty ? "UNSAVED CHANGES" : "ALL CHANGES SAVED"}</span>
-              </div>
-            </>
-          ) : (
-            <div className="flex-1 flex items-center justify-center font-mono text-[12px] text-[#555]">
-              Select a page to edit, or add a chapter.
-            </div>
-          )}
-        </div>
+        {current ? (
+          <PageEditor key={current.page.id} current={current} onSaved={() => load()} />
+        ) : (
+          <div className="bg-[#1A1A1A] border border-[rgba(126,130,172,0.2)] flex items-center justify-center font-mono text-[12px] text-[#555]">
+            Select a page to edit, or add a chapter.
+          </div>
+        )}
       </div>
       <ConfirmModal
         open={!!confirm}

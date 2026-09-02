@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { apiGet } from "@/lib/api-server";
 import type { Match, NewsPost, NrvEvent, Team } from "@/lib/types";
 import { evStatus, computeStandings } from "@/lib/derived";
@@ -56,12 +57,13 @@ export default async function HomePage() {
   return (
     <div>
       <div className="relative min-h-[420px] flex items-center justify-center overflow-hidden border-b border-[rgba(126,130,172,0.2)]">
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              "radial-gradient(ellipse at 50% 30%, rgba(126,130,172,0.18), transparent 60%), #0B0B0E",
-          }}
+        <Image
+          src="/assets/neural.png"
+          alt=""
+          fill
+          priority
+          className="object-cover"
+          style={{ opacity: 0.35 }}
         />
         <div
           className="absolute inset-0"
@@ -71,17 +73,14 @@ export default async function HomePage() {
           }}
         />
         <div className="relative text-center px-5" style={{ padding: "120px 20px 70px" }}>
-          <div
-            className="nrv-display"
-            style={{
-              fontSize: "min(96px,14vw)",
-              letterSpacing: "-2px",
-              color: "#E6E6E6",
-              lineHeight: 1,
-            }}
-          >
-            NERVE
-          </div>
+          <Image
+            src="/assets/nerve-wordmark.png"
+            alt="NERVE"
+            width={560}
+            height={140}
+            priority
+            style={{ width: "min(560px,80vw)", height: "auto", margin: "0 auto" }}
+          />
           <HeroCTA activeEventId={activeEvent?.id ?? null} events={allEvents} />
         </div>
       </div>

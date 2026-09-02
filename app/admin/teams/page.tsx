@@ -18,7 +18,9 @@ export default function AdminTeamsPage() {
   };
 
   useEffect(() => {
-    load();
+    void (async () => {
+      await load();
+    })();
   }, []);
 
   const toggleEnabled = async (team: Team) => {

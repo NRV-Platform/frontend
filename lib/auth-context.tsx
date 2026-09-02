@@ -49,14 +49,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    const token = getAccessToken();
-    const stored = loadStoredUser();
-    if (token && stored) {
-      setUserState(stored);
-    } else if (!token) {
-      storeUser(null);
-    }
-    setLoading(false);
+    void (async () => {
+      const token = getAccessToken();
+      const stored = loadStoredUser();
+      if (token && stored) {
+        setUserState(stored);
+      } else if (!token) {
+        storeUser(null);
+      }
+      setLoading(false);
+    })();
   }, []);
 
   const login = useCallback(

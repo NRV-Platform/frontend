@@ -29,25 +29,26 @@ export default function TeamManagementPage() {
   const [posEdit, setPosEdit] = useState<{ userId: string; position: string } | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const load = async () => {
-    if (!user) {
-      setChecked(true);
-      return;
-    }
-    try {
-      const teams = await api.get<Team[]>("/teams", { auth: false });
-      const mine = teams.find((t) => t.memberships?.some((m) => m.userId === user.id));
-      setTeam(mine ?? null);
-    } catch {
-      setTeam(null);
-    } finally {
-      setChecked(true);
-    }
-  };
-
   useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    let cancelled = false;
+    void (async () => {
+      if (!user) {
+        if (!cancelled) setChecked(true);
+        return;
+      }
+      try {
+        const teams = await api.get<Team[]>("/teams", { auth: false });
+        const mine = teams.find((t) => t.memberships?.some((m) => m.userId === user.id));
+        if (!cancelled) setTeam(mine ?? null);
+      } catch {
+        if (!cancelled) setTeam(null);
+      } finally {
+        if (!cancelled) setChecked(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [user]);
 
   if (loading || !checked) return null;

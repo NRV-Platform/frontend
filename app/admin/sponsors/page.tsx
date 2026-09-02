@@ -22,7 +22,9 @@ export default function AdminSponsorsPage() {
   };
 
   useEffect(() => {
-    load();
+    void (async () => {
+      await load();
+    })();
   }, []);
 
   const openEdit = (s: Sponsor | null) => {

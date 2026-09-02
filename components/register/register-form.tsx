@@ -46,12 +46,12 @@ export function RegisterForm({
   const [done, setDone] = useState<"ok" | "waitlist" | null>(null);
 
   useEffect(() => {
-    if (!user) {
-      setTeamChecked(true);
-      return;
-    }
     let cancelled = false;
-    (async () => {
+    void (async () => {
+      if (!user) {
+        if (!cancelled) setTeamChecked(true);
+        return;
+      }
       try {
         const teams = await api.get<Team[]>("/teams", { auth: false });
         const mine = teams.find((t) =>

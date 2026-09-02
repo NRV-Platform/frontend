@@ -34,7 +34,9 @@ export default function AdminNewsPage() {
   };
 
   useEffect(() => {
-    load();
+    void (async () => {
+      await load();
+    })();
   }, []);
 
   const cats = categories.filter((c) => !c.archived).map((c) => c.name);

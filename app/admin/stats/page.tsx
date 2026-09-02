@@ -29,7 +29,9 @@ export default function AdminStatsPage() {
   };
 
   useEffect(() => {
-    load();
+    void (async () => {
+      await load();
+    })();
   }, []);
 
   const openLinks = (m: Match) => {

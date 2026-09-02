@@ -80,12 +80,17 @@ export default function AdminEventsPage() {
   };
 
   useEffect(() => {
-    loadEvents();
+    void (async () => {
+      await loadEvents();
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    if (sel) loadMatches(sel);
+    if (!sel) return;
+    void (async () => {
+      await loadMatches(sel);
+    })();
   }, [sel]);
 
   const ev = events.find((e) => e.id === sel) ?? null;

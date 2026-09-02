@@ -27,7 +27,18 @@ export default function AdminUsersPage() {
   };
 
   useEffect(() => {
-    load();
+    let cancelled = false;
+    (async () => {
+      try {
+        const list = await api.get<User[]>("/users");
+        if (!cancelled) setUsers(list);
+      } catch (e) {
+        if (!cancelled) toast(e instanceof ApiError ? e.message : "Failed to load users", "error");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
