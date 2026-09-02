@@ -22,9 +22,6 @@ export function DiscordCard({ user }: { user: User }) {
         "/users/me/discord/auth-url"
       );
       if (mock || !url) {
-        // No real Discord application is configured in this environment —
-        // skip the redirect (Discord would reject the placeholder client_id)
-        // and connect directly with a synthetic code the mock exchange accepts.
         await api.post("/users/me/discord/connect", { code: `dev-${Date.now()}` });
         await refreshUser();
         toast("Discord account linked (dev mode — no live Discord app configured)");
