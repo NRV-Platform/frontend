@@ -47,7 +47,8 @@ export default function LoginPage() {
       return;
     }
     toast(mode === "login" ? "Logged in" : "Account created");
-    router.push("/");
+    const isStaff = res.user?.role === "admin" || res.user?.role === "editor";
+    router.push(isStaff ? "/admin" : "/");
   };
 
   return (

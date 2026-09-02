@@ -134,9 +134,3 @@ button {
     grid-template-columns: 1fr !important;
   }
 }
-
-@media (max-width: 860px) {
-  .nrv-admin-side {
-    display: none !important;
-  }
-}

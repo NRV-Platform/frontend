@@ -17,9 +17,11 @@ export function MVPNav() {
   const { user, logout } = useAuth();
   const [open, setOpen] = useState<number | null>(null);
   const [mob, setMob] = useState(false);
-  const [acctOpen, setAcctOpen] = useState(false);
+  const [acctOpenDesktop, setAcctOpenDesktop] = useState(false);
+  const [acctOpenMobile, setAcctOpenMobile] = useState(false);
   const ref = useRef<HTMLElement>(null);
-  const acctRef = useRef<HTMLDivElement>(null);
+  const acctRefDesktop = useRef<HTMLDivElement>(null);
+  const acctRefMobile = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const h = (e: MouseEvent) => {
@@ -27,8 +29,11 @@ export function MVPNav() {
         setOpen(null);
         setMob(false);
       }
-      if (acctRef.current && !acctRef.current.contains(e.target as Node)) {
-        setAcctOpen(false);
+      if (acctRefDesktop.current && !acctRefDesktop.current.contains(e.target as Node)) {
+        setAcctOpenDesktop(false);
+      }
+      if (acctRefMobile.current && !acctRefMobile.current.contains(e.target as Node)) {
+        setAcctOpenMobile(false);
       }
     };
     document.addEventListener("mousedown", h);
@@ -140,9 +145,9 @@ export function MVPNav() {
         <AccountChip
           user={user}
           isStaff={!!isStaff}
-          open={acctOpen}
-          setOpen={setAcctOpen}
-          acctRef={acctRef}
+          open={acctOpenDesktop}
+          setOpen={setAcctOpenDesktop}
+          acctRef={acctRefDesktop}
           onLogout={() => {
             logout();
             go("/");
@@ -154,9 +159,9 @@ export function MVPNav() {
         <AccountChip
           user={user}
           isStaff={!!isStaff}
-          open={acctOpen}
-          setOpen={setAcctOpen}
-          acctRef={acctRef}
+          open={acctOpenMobile}
+          setOpen={setAcctOpenMobile}
+          acctRef={acctRefMobile}
           onLogout={() => {
             logout();
             go("/");

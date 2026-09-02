@@ -31,8 +31,15 @@ function storeUser(user: PublicUser | null) {
 interface AuthContextValue {
   user: PublicUser | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
-  signup: (email: string, password: string, name: string) => Promise<{ ok: boolean; error?: string }>;
+  login: (
+    email: string,
+    password: string
+  ) => Promise<{ ok: boolean; error?: string; user?: PublicUser }>;
+  signup: (
+    email: string,
+    password: string,
+    name: string
+  ) => Promise<{ ok: boolean; error?: string; user?: PublicUser }>;
   logout: () => void;
   setUser: (user: PublicUser | null) => void;
 }
@@ -71,7 +78,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         );
         setTokens(res.accessToken, res.refreshToken);
         setUser(res.user);
-        return { ok: true };
+        return { ok: true, user: res.user };
       } catch (e) {
         const msg = e instanceof ApiError ? e.message : "Login failed";
         return { ok: false, error: msg };
@@ -90,7 +97,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         );
         setTokens(res.accessToken, res.refreshToken);
         setUser(res.user);
-        return { ok: true };
+        return { ok: true, user: res.user };
       } catch (e) {
         const msg = e instanceof ApiError ? e.message : "Signup failed";
         return { ok: false, error: msg };

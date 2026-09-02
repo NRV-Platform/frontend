@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { AccessDenied } from "@/components/access-denied";
 import { Pill } from "@/components/ui/primitives";
+import type { PublicUser } from "@/lib/types";
 
 const ADMIN_PAGES = [
   { id: "", label: "Dashboard", icon: "▦" },
@@ -18,10 +20,74 @@ const ADMIN_PAGES = [
   { id: "audit", label: "Audit Log", icon: "◫" },
 ];
 
+function SidebarContent({
+  user,
+  activeId,
+  onNavigate,
+}: {
+  user: PublicUser;
+  activeId: string;
+  onNavigate: (href: string) => void;
+}) {
+  return (
+    <>
+      <div
+        onClick={() => onNavigate("/")}
+        className="px-5 pt-5 pb-4 border-b border-[rgba(126,130,172,0.2)] flex items-center gap-2.5 cursor-pointer flex-shrink-0"
+      >
+        <svg width="36" height="28" viewBox="0 0 36 28" fill="none">
+          <rect width="36" height="28" rx="2" fill="#7E82AC" />
+          <text x="5" y="20" fontFamily="Archivo, sans-serif" fontSize="14" fontWeight="900" fill="#0B0B0E">
+            NRV
+          </text>
+        </svg>
+        <div>
+          <div className="font-display font-bold text-[13px] text-[#E6E6E6] tracking-[2px]">NERVE</div>
+          <div className="font-mono text-[9px] text-[#888BA0] tracking-[2px]">ADMIN</div>
+        </div>
+      </div>
+      <nav className="flex-1 py-3.5 overflow-y-auto">
+        {ADMIN_PAGES.map((it) => {
+          const active = activeId === it.id;
+          return (
+            <div
+              key={it.id}
+              onClick={() => onNavigate(it.id ? `/admin/${it.id}` : "/admin")}
+              className="flex items-center gap-2.5 px-5 py-2.5 cursor-pointer transition-colors"
+              style={{
+                background: active ? "rgba(126,130,172,0.15)" : "transparent",
+                borderLeft: active ? "3px solid #7E82AC" : "3px solid transparent",
+              }}
+            >
+              <span className="text-[14px] w-[18px]" style={{ color: active ? "#BFC2DE" : "#555" }}>
+                {it.icon}
+              </span>
+              <span
+                className="font-mono text-[11px] tracking-[1px] flex-1"
+                style={{ color: active ? "#E6E6E6" : "#888BA0" }}
+              >
+                {it.label}
+              </span>
+            </div>
+          );
+        })}
+      </nav>
+      <div className="px-5 py-4 border-t border-[rgba(126,130,172,0.2)] flex-shrink-0">
+        <div className="font-mono text-[10px] text-[#555] tracking-[1px]">Logged in as</div>
+        <div className="font-mono text-[11px] text-[#888BA0] mt-0.5">{user.email}</div>
+        <div className="mt-1">
+          <Pill color="#BFC2DE">{user.role}</Pill>
+        </div>
+      </div>
+    </>
+  );
+}
+
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   if (loading) return null;
 
@@ -32,61 +98,56 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   const activeId = pathname?.replace(/^\/admin\/?/, "") ?? "";
+  const activePage = ADMIN_PAGES.find((p) => p.id === activeId);
+
+  const navigate = (href: string) => {
+    setDrawerOpen(false);
+    router.push(href);
+  };
 
   return (
-    <div className="flex min-h-screen">
-      <aside
-        className="nrv-admin-side w-[222px] bg-[#111] flex-shrink-0 border-r border-[rgba(126,130,172,0.2)] flex flex-col sticky top-0 h-screen overflow-y-auto"
-      >
-        <div
-          onClick={() => router.push("/")}
-          className="px-5 pt-5 pb-4 border-b border-[rgba(126,130,172,0.2)] flex items-center gap-2.5 cursor-pointer"
+    <div className="flex min-h-screen flex-col md:flex-row">
+      {/* Mobile top bar */}
+      <div className="md:hidden sticky top-0 z-[150] flex items-center gap-3 bg-[#111] border-b border-[rgba(126,130,172,0.2)] px-4 py-3">
+        <button
+          onClick={() => setDrawerOpen(true)}
+          aria-label="Open admin menu"
+          className="bg-transparent border border-[rgba(126,130,172,0.4)] text-[#BFC2DE] px-2.5 py-1.5 cursor-pointer font-mono text-[12px]"
         >
-          <svg width="36" height="28" viewBox="0 0 36 28" fill="none">
-            <rect width="36" height="28" rx="2" fill="#7E82AC" />
-            <text x="5" y="20" fontFamily="Archivo, sans-serif" fontSize="14" fontWeight="900" fill="#0B0B0E">
-              NRV
-            </text>
-          </svg>
-          <div>
-            <div className="font-display font-bold text-[13px] text-[#E6E6E6] tracking-[2px]">NERVE</div>
-            <div className="font-mono text-[9px] text-[#888BA0] tracking-[2px]">ADMIN</div>
-          </div>
-        </div>
-        <nav className="flex-1 py-3.5">
-          {ADMIN_PAGES.map((it) => {
-            const active = activeId === it.id;
-            return (
-              <div
-                key={it.id}
-                onClick={() => router.push(it.id ? `/admin/${it.id}` : "/admin")}
-                className="flex items-center gap-2.5 px-5 py-2.5 cursor-pointer transition-colors"
-                style={{
-                  background: active ? "rgba(126,130,172,0.15)" : "transparent",
-                  borderLeft: active ? "3px solid #7E82AC" : "3px solid transparent",
-                }}
-              >
-                <span className="text-[14px] w-[18px]" style={{ color: active ? "#BFC2DE" : "#555" }}>
-                  {it.icon}
-                </span>
-                <span
-                  className="font-mono text-[11px] tracking-[1px] flex-1"
-                  style={{ color: active ? "#E6E6E6" : "#888BA0" }}
-                >
-                  {it.label}
-                </span>
-              </div>
-            );
-          })}
-        </nav>
-        <div className="px-5 py-4 border-t border-[rgba(126,130,172,0.2)]">
-          <div className="font-mono text-[10px] text-[#555] tracking-[1px]">Logged in as</div>
-          <div className="font-mono text-[11px] text-[#888BA0] mt-0.5">{user.email}</div>
-          <div className="mt-1">
-            <Pill color="#BFC2DE">{user.role}</Pill>
-          </div>
-        </div>
+          ☰
+        </button>
+        <span className="font-mono text-[11px] text-[#E6E6E6] tracking-[2px] uppercase flex-1">
+          {activePage?.label ?? "Admin"}
+        </span>
+      </div>
+
+      {/* Desktop sidebar */}
+      <aside className="hidden md:flex w-[222px] bg-[#111] flex-shrink-0 border-r border-[rgba(126,130,172,0.2)] flex-col sticky top-0 h-screen overflow-y-auto">
+        <SidebarContent user={user} activeId={activeId} onNavigate={navigate} />
       </aside>
+
+      {/* Mobile drawer */}
+      {drawerOpen && (
+        <div className="md:hidden fixed inset-0 z-[200]">
+          <div
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={() => setDrawerOpen(false)}
+          />
+          <aside className="absolute top-0 left-0 bottom-0 w-[260px] max-w-[80vw] bg-[#111] border-r border-[rgba(126,130,172,0.3)] flex flex-col">
+            <div className="flex justify-end px-3 pt-3">
+              <button
+                onClick={() => setDrawerOpen(false)}
+                aria-label="Close admin menu"
+                className="bg-transparent border border-[rgba(126,130,172,0.4)] text-[#BFC2DE] px-2.5 py-1 cursor-pointer font-mono text-[12px]"
+              >
+                ✕
+              </button>
+            </div>
+            <SidebarContent user={user} activeId={activeId} onNavigate={navigate} />
+          </aside>
+        </div>
+      )}
+
       <main className="flex-1 px-4 sm:px-10 py-8 min-w-0">{children}</main>
     </div>
   );
