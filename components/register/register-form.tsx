@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/components/ui/toast";
 import { api, ApiError } from "@/lib/api";
-import { regState, GAMES } from "@/lib/derived";
+import { regState, GAMES, GAME_ROLES } from "@/lib/derived";
 import type { NrvEvent, Team, TeamMembership } from "@/lib/types";
 import {
   PageHead,
@@ -43,9 +43,11 @@ function RosterRow({
   member,
   captainable,
   isCaptain,
+  roles,
   onAdd,
   onRemove,
   onSetCaptain,
+  onSetPosition,
   busy,
 }: {
   index: number;
@@ -53,77 +55,97 @@ function RosterRow({
   member?: TeamMembership;
   captainable?: boolean;
   isCaptain?: boolean;
-  onAdd: (tag: string) => void;
+  roles?: string[];
+  onAdd: (tag: string, position?: string, captain?: boolean) => void;
   onRemove?: () => void;
   onSetCaptain?: (checked: boolean) => void;
+  onSetPosition?: (position: string) => void;
   busy: boolean;
 }) {
   const [tag, setTag] = useState("");
+  const [draftPosition, setDraftPosition] = useState("");
+  const [draftCaptain, setDraftCaptain] = useState(false);
+
+  const hasRoles = !!roles && roles.length > 0;
 
   return (
-    <div
-      style={{
-        border: "1px solid rgba(126,130,172,0.25)",
-        padding: 16,
-        marginBottom: 12,
-        background: "rgba(20,20,24,0.5)",
-      }}
-    >
-      <div className="flex items-center mb-3.5 gap-3" style={{ marginBottom: 14 }}>
-        <span className="font-display font-extrabold text-[12px] tracking-[2px] text-[#BFC2DE] uppercase">
-          {title} {index + 1}
-        </span>
-        {captainable && (
-          <label
-            className="flex items-center gap-1.5 font-mono text-[10px] tracking-[1px] uppercase cursor-pointer"
-            style={{ color: isCaptain ? "#E6E6E6" : "#888BA0", marginLeft: "auto" }}
-          >
-            <input
-              type="checkbox"
-              checked={!!isCaptain}
-              disabled={!member}
-              onChange={(e) => onSetCaptain?.(e.target.checked)}
-            />{" "}
-            Mark as captain
-          </label>
-        )}
-        {onRemove && (
-          <button
-            onClick={onRemove}
-            style={{ marginLeft: captainable ? 0 : "auto" }}
-            className="bg-transparent border-none text-[#555] cursor-pointer font-mono text-[14px]"
-          >
-            ✕
-          </button>
-        )}
-      </div>
-      {member ? (
-        <div className="flex items-center justify-between gap-3 flex-wrap">
+    <div className="flex items-start gap-2.5 mb-3" style={{ marginBottom: 12 }}>
+      <div
+        className="flex-1"
+        style={{
+          border: "1px solid rgba(126,130,172,0.25)",
+          padding: 16,
+          background: "rgba(20,20,24,0.5)",
+        }}
+      >
+        <div className="flex items-center mb-3.5 gap-3" style={{ marginBottom: 14 }}>
+          <span className="font-display font-extrabold text-[12px] tracking-[2px] text-[#BFC2DE] uppercase">
+            {title} {index + 1}
+          </span>
+          {hasRoles && (
+            <div className="flex-1 flex justify-center">
+              <Select
+                value={member ? member.position ?? "" : draftPosition}
+                onChange={(e) =>
+                  member ? onSetPosition?.(e.target.value) : setDraftPosition(e.target.value)
+                }
+                options={["", ...(roles ?? [])]}
+                style={{ width: 150, padding: "5px 8px", fontSize: 10 }}
+              />
+            </div>
+          )}
+          {captainable && (
+            <label
+              className="flex items-center gap-1.5 font-mono text-[10px] tracking-[1px] uppercase cursor-pointer"
+              style={{ color: isCaptain || draftCaptain ? "#E6E6E6" : "#888BA0", marginLeft: hasRoles ? 0 : "auto" }}
+            >
+              <input
+                type="checkbox"
+                checked={member ? !!isCaptain : draftCaptain}
+                onChange={(e) =>
+                  member ? onSetCaptain?.(e.target.checked) : setDraftCaptain(e.target.checked)
+                }
+              />{" "}
+              Mark as captain
+            </label>
+          )}
+        </div>
+        {member ? (
           <div>
             <div className="text-[#E6E6E6] font-display font-bold text-[13px] tracking-[1px] uppercase">
               {member.user?.name ?? "—"}
             </div>
             <div className="text-[10px] text-[#555] font-mono">{member.user?.playerTag}</div>
           </div>
-        </div>
-      ) : (
-        <div className="flex gap-2.5 items-end flex-wrap">
-          <Field label="Player tag" req className="flex-1" style={{ minWidth: 200 }}>
-            <Input value={tag} onChange={(e) => setTag(e.target.value)} placeholder="Name#1234" />
-          </Field>
-          <Btn
-            variant="ghost"
-            style={{ padding: "9px 16px" }}
-            disabled={busy}
-            onClick={() => {
-              if (!tag.trim()) return;
-              onAdd(tag.trim());
-              setTag("");
-            }}
-          >
-            Add
-          </Btn>
-        </div>
+        ) : (
+          <div className="flex gap-2.5 items-end flex-wrap">
+            <Field label="Player tag" req className="flex-1" style={{ minWidth: 200 }}>
+              <Input value={tag} onChange={(e) => setTag(e.target.value)} placeholder="Name#1234" />
+            </Field>
+            <Btn
+              variant="ghost"
+              style={{ padding: "9px 16px" }}
+              disabled={busy}
+              onClick={() => {
+                if (!tag.trim()) return;
+                onAdd(tag.trim(), draftPosition || undefined, draftCaptain);
+                setTag("");
+                setDraftPosition("");
+                setDraftCaptain(false);
+              }}
+            >
+              Add
+            </Btn>
+          </div>
+        )}
+      </div>
+      {onRemove && (
+        <button
+          onClick={onRemove}
+          className="bg-transparent border-none text-[#555] hover:text-[#f87171] cursor-pointer font-mono text-[16px] flex-shrink-0 mt-1"
+        >
+          ✕
+        </button>
       )}
     </div>
   );
@@ -264,11 +286,20 @@ export function RegisterForm({
     }
   };
 
-  const addMember = async (playerTag: string) => {
+  const addMember = async (playerTag: string, position?: string, captain?: boolean) => {
     if (!myTeam) return;
     setBusy(true);
     try {
-      const updated = await api.post<Team>(`/teams/${myTeam.id}/members`, { playerTag });
+      let updated = await api.post<Team>(`/teams/${myTeam.id}/members`, { playerTag });
+      const newMember = updated.memberships?.find(
+        (m) => m.user?.playerTag?.toLowerCase() === playerTag.toLowerCase()
+      );
+      if (newMember && (position || captain)) {
+        updated = await api.patch<Team>(`/teams/${myTeam.id}/members/${newMember.userId}`, {
+          ...(position ? { position } : {}),
+          ...(captain ? { teamRole: "captain" } : {}),
+        });
+      }
       setMyTeam(updated);
       toast("Player added to roster");
     } catch (e) {
@@ -520,10 +551,12 @@ export function RegisterForm({
                     member={member}
                     captainable
                     isCaptain={member?.teamRole === "captain"}
+                    roles={GAME_ROLES[myTeam.game]}
                     busy={busy}
                     onAdd={addMember}
                     onRemove={member ? () => removeMember(member.userId) : undefined}
                     onSetCaptain={(checked) => setPlayerCaptain(member, checked)}
+                    onSetPosition={(position) => updateMember(member!.userId, { position })}
                   />
                 );
               })}
@@ -537,6 +570,7 @@ export function RegisterForm({
                     index={i}
                     title="Substitute"
                     member={member}
+                    roles={GAME_ROLES[myTeam.game]}
                     busy={busy}
                     onAdd={addMember}
                     onRemove={
@@ -544,6 +578,7 @@ export function RegisterForm({
                         ? () => removeMember(member.userId)
                         : () => setSubSlots((n) => Math.max(0, n - 1))
                     }
+                    onSetPosition={(position) => updateMember(member!.userId, { position })}
                   />
                 );
               })}
