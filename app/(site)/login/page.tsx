@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/components/ui/toast";
@@ -38,9 +39,14 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center px-5" style={{ padding: "100px 20px 60px" }}>
       <div className="w-[420px] max-w-full">
         <div className="text-center mb-8">
-          <div className="nrv-display text-[#E6E6E6]" style={{ fontSize: 44, letterSpacing: "-1px" }}>
-            NERVE
-          </div>
+          <Image
+            src="/assets/nerve-wordmark.png"
+            alt="NERVE"
+            width={4096}
+            height={896}
+            priority
+            style={{ width: 220, height: "auto", opacity: 0.9, margin: "0 auto" }}
+          />
           <div className="font-mono text-[10px] text-[#888BA0] tracking-[5px] uppercase mt-2.5">
             {mode === "login" ? "Account login" : "Create an account"}
           </div>

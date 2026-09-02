@@ -76,8 +76,8 @@ export default async function HomePage() {
           <Image
             src="/assets/nerve-wordmark.png"
             alt="NERVE"
-            width={560}
-            height={140}
+            width={4096}
+            height={896}
             priority
             style={{ width: "min(560px,80vw)", height: "auto", margin: "0 auto" }}
           />
