@@ -47,9 +47,10 @@ export default function AdminNewsPage() {
       return;
     }
     try {
-      const payload = { ...edit, status };
-      if (edit.id) {
-        await api.patch(`/news/${edit.id}`, payload);
+      const { id, ...rest } = edit;
+      const payload = { ...rest, status };
+      if (id) {
+        await api.patch(`/news/${id}`, payload);
       } else {
         await api.post("/news", payload);
       }

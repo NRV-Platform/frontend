@@ -64,6 +64,7 @@ export default function AdminEventsPage() {
   );
   const [forfeit, setForfeit] = useState<{ match: Match; winner: string } | null>(null);
   const [del, setDel] = useState<Match | null>(null);
+  const [delEvent, setDelEvent] = useState<NrvEvent | null>(null);
 
   const loadEvents = async () => {
     const [ev, tm] = await Promise.all([
@@ -103,10 +104,11 @@ export default function AdminEventsPage() {
       return;
     }
     try {
-      if (editing.id) {
-        await api.patch(`/events/${editing.id}`, editing);
+      const { id, ...payload } = editing;
+      if (id) {
+        await api.patch(`/events/${id}`, payload);
       } else {
-        await api.post("/events", editing);
+        await api.post("/events", payload);
       }
       toast("Event saved");
       setEditing(null);
@@ -191,6 +193,19 @@ export default function AdminEventsPage() {
     }
   };
 
+  const doDeleteEvent = async () => {
+    if (!delEvent) return;
+    try {
+      await api.delete(`/events/${delEvent.id}`);
+      toast("Event deleted");
+      setDelEvent(null);
+      setSel(null);
+      loadEvents();
+    } catch (e) {
+      toast(e instanceof ApiError ? e.message : "Failed to delete event", "error");
+    }
+  };
+
   return (
     <div>
       <AdminHead
@@ -249,15 +264,6 @@ export default function AdminEventsPage() {
                 onChange={(e) => setEditing({ ...editing, capacity: +e.target.value })}
               />
             </Field>
-            <Field label="Start date" req>
-              <DatePicker value={editing.startDate} onChange={(v) => setEditing({ ...editing, startDate: v })} />
-            </Field>
-            <Field label="End date" req>
-              <DatePicker value={editing.endDate} onChange={(v) => setEditing({ ...editing, endDate: v })} />
-            </Field>
-            <Field label="Prize (plain text)">
-              <Input value={editing.prizeText} onChange={(e) => setEditing({ ...editing, prizeText: e.target.value })} />
-            </Field>
             <Field label="Registration opens">
               <DatePicker
                 value={editing.regOpenDate}
@@ -269,6 +275,15 @@ export default function AdminEventsPage() {
                 value={editing.regCloseDate}
                 onChange={(v) => setEditing({ ...editing, regCloseDate: v })}
               />
+            </Field>
+            <Field label="Prize (plain text)">
+              <Input value={editing.prizeText} onChange={(e) => setEditing({ ...editing, prizeText: e.target.value })} />
+            </Field>
+            <Field label="Start date" req>
+              <DatePicker value={editing.startDate} onChange={(v) => setEditing({ ...editing, startDate: v })} />
+            </Field>
+            <Field label="End date" req>
+              <DatePicker value={editing.endDate} onChange={(v) => setEditing({ ...editing, endDate: v })} />
             </Field>
           </div>
           <div className="flex gap-2.5 mt-4.5" style={{ marginTop: 18 }}>
@@ -323,6 +338,13 @@ export default function AdminEventsPage() {
                 }
               >
                 + Match
+              </Btn>
+              <Btn
+                variant="danger"
+                style={{ padding: "6px 14px" }}
+                onClick={() => setDelEvent(ev)}
+              >
+                Delete
               </Btn>
             </div>
           </Card>
@@ -567,6 +589,18 @@ export default function AdminEventsPage() {
         }
         onCancel={() => setDel(null)}
         onConfirm={doDelete}
+      />
+
+      <ConfirmModal
+        open={!!delEvent}
+        title="Delete event"
+        confirmLabel="Delete event"
+        body={
+          delEvent &&
+          `Delete "${delEvent.name}"? This only works if the event has no matches and no active registrations — otherwise the deletion will be refused.`
+        }
+        onCancel={() => setDelEvent(null)}
+        onConfirm={doDeleteEvent}
       />
     </div>
   );

@@ -4,10 +4,11 @@ import { apiGet } from "@/lib/api-server";
 import type { Match, NewsPost, NrvEvent, Team } from "@/lib/types";
 import { evStatus, computeStandings } from "@/lib/derived";
 import { PageShell } from "@/components/nav";
-import { SectionLabel, Card, Table, TeamChip, Empty } from "@/components/ui/primitives";
+import { SectionLabel, Empty } from "@/components/ui/primitives";
 import { HeroCTA } from "@/components/home/hero-cta";
 import { TeamsStrip } from "@/components/home/teams-strip";
 import { MatchWidget } from "@/components/home/match-widget";
+import { StandingsTable } from "@/components/home/standings-table";
 import { NewsCard } from "@/components/news/news-card";
 
 export const revalidate = 30;
@@ -116,56 +117,7 @@ export default async function HomePage() {
             >
               {activeEvent.name}
             </SectionLabel>
-            <Card pad={0}>
-              <Table
-                cols={[
-                  { h: "#", render: (r) => <span className="text-[#555]">{r.rank}</span> },
-                  {
-                    h: "Team",
-                    render: (r) => {
-                      const t = teamMap.get(r.teamId);
-                      return (
-                        <TeamChip tag={t?.tag ?? r.teamId} color={t?.color} isNrv={t?.isNrv} />
-                      );
-                    },
-                  },
-                  {
-                    h: "W–L",
-                    right: true,
-                    render: (r) => (
-                      <span className="text-[#E6E6E6]">
-                        {r.wins}–{r.losses}
-                      </span>
-                    ),
-                  },
-                  {
-                    h: "Map ±",
-                    right: true,
-                    render: (r) => (
-                      <span
-                        style={{
-                          color: r.mapDiff > 0 ? "#4ade80" : r.mapDiff < 0 ? "#f87171" : "#555",
-                        }}
-                      >
-                        {r.mapDiff > 0 ? "+" : ""}
-                        {r.mapDiff}
-                      </span>
-                    ),
-                  },
-                  {
-                    h: "Pts",
-                    right: true,
-                    render: (r) => (
-                      <span className="font-display font-extrabold text-[15px] text-[#E6E6E6]">
-                        {r.points}
-                      </span>
-                    ),
-                  },
-                ]}
-                rows={standings}
-                keyFn={(r) => r.teamId}
-              />
-            </Card>
+            <StandingsTable rows={standings} teamMap={teamMap} />
           </div>
         )}
 

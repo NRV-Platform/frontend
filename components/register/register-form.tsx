@@ -5,11 +5,12 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/components/ui/toast";
 import { api, ApiError } from "@/lib/api";
-import { regState, GAMES } from "@/lib/derived";
-import type { NrvEvent, Team } from "@/lib/types";
+import { regState, GAMES, GAME_ROLES } from "@/lib/derived";
+import type { NrvEvent, Team, TeamMembership } from "@/lib/types";
 import {
   PageHead,
   Card,
+  Pill,
   Field,
   Input,
   Select,
@@ -18,6 +19,202 @@ import {
   Spark,
   fmtD,
 } from "@/components/ui/primitives";
+
+const MIN_ROSTER_SIZE = 5;
+const MAX_ROSTER_SIZE = 8;
+const MAX_SUBS = 2;
+
+function SectionHeading({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      className="font-display font-extrabold text-[15px] tracking-[3px] text-[#E6E6E6] uppercase flex items-center gap-2.5"
+      style={{ margin: "40px 0 16px" }}
+    >
+      <Spark size={10} />
+      {children}
+    </div>
+  );
+}
+
+
+function RosterRow({
+  index,
+  title,
+  member,
+  captainable,
+  isCaptain,
+  roles,
+  onAdd,
+  onRemove,
+  onSetCaptain,
+  onSetPosition,
+  busy,
+}: {
+  index: number;
+  title: string;
+  member?: TeamMembership;
+  captainable?: boolean;
+  isCaptain?: boolean;
+  roles?: string[];
+  onAdd: (tag: string, position?: string, captain?: boolean) => void;
+  onRemove?: () => void;
+  onSetCaptain?: (checked: boolean) => void;
+  onSetPosition?: (position: string) => void;
+  busy: boolean;
+}) {
+  const [tag, setTag] = useState("");
+  const [draftPosition, setDraftPosition] = useState("");
+  const [draftCaptain, setDraftCaptain] = useState(false);
+
+  const hasRoles = !!roles && roles.length > 0;
+
+  return (
+    <div className="flex items-start gap-2.5 mb-3" style={{ marginBottom: 12 }}>
+      <div
+        className="flex-1"
+        style={{
+          border: "1px solid rgba(126,130,172,0.25)",
+          padding: 16,
+          background: "rgba(20,20,24,0.5)",
+        }}
+      >
+        <div className="flex items-center mb-3.5 gap-3" style={{ marginBottom: 14 }}>
+          <span className="font-display font-extrabold text-[12px] tracking-[2px] text-[#BFC2DE] uppercase">
+            {title} {index + 1}
+          </span>
+          {hasRoles && (
+            <div className="flex-1 flex justify-center">
+              <Select
+                value={member ? member.position ?? "" : draftPosition}
+                onChange={(e) =>
+                  member ? onSetPosition?.(e.target.value) : setDraftPosition(e.target.value)
+                }
+                options={["", ...(roles ?? [])]}
+                style={{ width: 150, padding: "5px 8px", fontSize: 10 }}
+              />
+            </div>
+          )}
+          {captainable && (
+            <label
+              className="flex items-center gap-1.5 font-mono text-[10px] tracking-[1px] uppercase cursor-pointer"
+              style={{ color: isCaptain || draftCaptain ? "#E6E6E6" : "#888BA0", marginLeft: hasRoles ? 0 : "auto" }}
+            >
+              <input
+                type="checkbox"
+                checked={member ? !!isCaptain : draftCaptain}
+                onChange={(e) =>
+                  member ? onSetCaptain?.(e.target.checked) : setDraftCaptain(e.target.checked)
+                }
+              />{" "}
+              Mark as captain
+            </label>
+          )}
+        </div>
+        {member ? (
+          <div>
+            <div className="text-[#E6E6E6] font-display font-bold text-[13px] tracking-[1px] uppercase">
+              {member.user?.name ?? "—"}
+            </div>
+            <div className="text-[10px] text-[#555] font-mono">{member.user?.playerTag}</div>
+          </div>
+        ) : (
+          <div className="flex gap-2.5 items-end flex-wrap">
+            <Field label="Player tag" req className="flex-1" style={{ minWidth: 200 }}>
+              <Input value={tag} onChange={(e) => setTag(e.target.value)} placeholder="Name#1234" />
+            </Field>
+            <Btn
+              variant="ghost"
+              style={{ padding: "9px 16px" }}
+              disabled={busy}
+              onClick={() => {
+                if (!tag.trim()) return;
+                onAdd(tag.trim(), draftPosition || undefined, draftCaptain);
+                setTag("");
+                setDraftPosition("");
+                setDraftCaptain(false);
+              }}
+            >
+              Add
+            </Btn>
+          </div>
+        )}
+      </div>
+      {onRemove && (
+        <button
+          onClick={onRemove}
+          className="bg-transparent border-none text-[#555] hover:text-[#f87171] cursor-pointer font-mono text-[16px] flex-shrink-0 mt-1"
+        >
+          ✕
+        </button>
+      )}
+    </div>
+  );
+}
+
+function StaffRow({
+  member,
+  onAdd,
+  onSetRole,
+  onRemove,
+  busy,
+}: {
+  member?: TeamMembership;
+  onAdd: (tag: string, role: string) => void;
+  onSetRole: (role: string) => void;
+  onRemove: () => void;
+  busy: boolean;
+}) {
+  const [tag, setTag] = useState("");
+  const [role, setRole] = useState("coach");
+
+  return (
+    <div className="flex gap-3 mb-2.5 items-end flex-wrap">
+      <Field label="Player tag" style={{ flex: "2 1 160px" }}>
+        {member ? (
+          <div className="font-mono text-[12px] text-[#BFC2DE] py-2.5">
+            {member.user?.name ?? member.user?.playerTag}{" "}
+            <span className="text-[#555]">({member.user?.playerTag})</span>
+          </div>
+        ) : (
+          <Input value={tag} onChange={(e) => setTag(e.target.value)} placeholder="Name#1234" />
+        )}
+      </Field>
+      <Field label="Role" style={{ flex: "1 1 140px" }}>
+        <Select
+          value={member ? member.teamRole : role}
+          onChange={(e) => {
+            if (member) onSetRole(e.target.value);
+            else setRole(e.target.value);
+          }}
+          options={[
+            { value: "coach", label: "Coach" },
+            { value: "assistant_coach", label: "Assistant Coach" },
+          ]}
+        />
+      </Field>
+      {!member && (
+        <Btn
+          variant="ghost"
+          style={{ padding: "9px 16px" }}
+          disabled={busy}
+          onClick={() => {
+            if (!tag.trim()) return;
+            onAdd(tag.trim(), role);
+            setTag("");
+          }}
+        >
+          Add
+        </Btn>
+      )}
+      <button
+        onClick={onRemove}
+        className="bg-transparent border-none text-[#555] cursor-pointer font-mono text-[14px] px-1"
+      >
+        ✕
+      </button>
+    </div>
+  );
+}
 
 export function RegisterForm({
   events,
@@ -44,6 +241,7 @@ export function RegisterForm({
   const [errs, setErrs] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<"ok" | "waitlist" | null>(null);
+  const [subSlots, setSubSlots] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -88,13 +286,100 @@ export function RegisterForm({
     }
   };
 
+  const addMember = async (playerTag: string, position?: string, captain?: boolean) => {
+    if (!myTeam) return;
+    setBusy(true);
+    try {
+      let updated = await api.post<Team>(`/teams/${myTeam.id}/members`, { playerTag });
+      const newMember = updated.memberships?.find(
+        (m) => m.user?.playerTag?.toLowerCase() === playerTag.toLowerCase()
+      );
+      if (newMember && (position || captain)) {
+        updated = await api.patch<Team>(`/teams/${myTeam.id}/members/${newMember.userId}`, {
+          ...(position ? { position } : {}),
+          ...(captain ? { teamRole: "captain" } : {}),
+        });
+      }
+      setMyTeam(updated);
+      toast("Player added to roster");
+    } catch (e) {
+      toast(e instanceof ApiError ? e.message : "Failed to add player", "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const addStaffMember = async (playerTag: string, role: string) => {
+    if (!myTeam) return;
+    setBusy(true);
+    try {
+      const added = await api.post<Team>(`/teams/${myTeam.id}/members`, { playerTag });
+      const newMember = added.memberships?.find(
+        (m) => m.user?.playerTag?.toLowerCase() === playerTag.toLowerCase()
+      );
+      const updated = newMember
+        ? await api.patch<Team>(`/teams/${myTeam.id}/members/${newMember.userId}`, { teamRole: role })
+        : added;
+      setMyTeam(updated);
+      toast("Staff added to roster");
+    } catch (e) {
+      toast(e instanceof ApiError ? e.message : "Failed to add staff", "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const updateMember = async (userId: string, data: { teamRole?: string; position?: string }) => {
+    if (!myTeam) return;
+    setBusy(true);
+    try {
+      const updated = await api.patch<Team>(`/teams/${myTeam.id}/members/${userId}`, data);
+      setMyTeam(updated);
+    } catch (e) {
+      toast(e instanceof ApiError ? e.message : "Failed to update member", "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const removeMember = async (userId: string) => {
+    if (!myTeam) return;
+    setBusy(true);
+    try {
+      const updated = await api.delete<Team>(`/teams/${myTeam.id}/members/${userId}`);
+      setMyTeam(updated);
+      toast("Removed from roster");
+    } catch (e) {
+      toast(e instanceof ApiError ? e.message : "Failed to remove member", "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const roster = myTeam?.memberships ?? [];
+  const staffMembers = roster.filter((m) => m.teamRole === "coach" || m.teamRole === "assistant_coach");
+  const nonStaffMembers = roster.filter((m) => m.teamRole !== "coach" && m.teamRole !== "assistant_coach");
+  const rosterSize = roster.length;
+  const captainMember = roster.find((m) => m.teamRole === "captain");
+
+  const setPlayerCaptain = (member: TeamMembership | undefined, checked: boolean) => {
+    if (!member) return;
+    updateMember(member.userId, { teamRole: checked ? "captain" : "member" });
+  };
+
   const submit = async () => {
     const e: string[] = [];
     if (!ev) e.push("Pick an event.");
     if (!myTeam) e.push("You need a team before registering.");
+    if (myTeam && rosterSize < MIN_ROSTER_SIZE) {
+      e.push(`Your roster needs at least ${MIN_ROSTER_SIZE} players to register (currently has ${rosterSize}).`);
+    }
+    if (myTeam && rosterSize > MAX_ROSTER_SIZE) {
+      e.push(`Your roster exceeds the maximum of ${MAX_ROSTER_SIZE} players (currently has ${rosterSize}).`);
+    }
     if (!contactEmail.trim()) e.push("Team contact email is required.");
     if (!acks.tos) e.push("The Terms of Service / Privacy Policy acknowledgment is required.");
-    if (!acks.emailConsent) e.push("Email consent acknowledgment is required.");
+    if (!acks.rulebook) e.push("The rulebook acknowledgment is required.");
     setErrs(e);
     if (e.length || !ev || !myTeam) return;
 
@@ -106,7 +391,7 @@ export function RegisterForm({
         contactEmail: contactEmail.trim(),
         acksTos: true,
         acksRulebookVersion: rulebookVersion,
-        acksEmailConsent: true,
+        acksEmailConsent: acks.emailConsent,
       });
       const status = rs === "waitlist" ? "waitlist" : "ok";
       setDone(status);
@@ -143,8 +428,8 @@ export function RegisterForm({
         </h1>
         <p className="font-mono text-[12px] text-[#888BA0] leading-[1.9] mb-7">
           {done === "waitlist"
-            ? "The event is at capacity. Staff will reach out if a slot opens."
-            : "NRV staff will review your registration."}
+            ? "The event is at capacity. Staff will email your team contact if a slot opens."
+            : "NRV staff will review your roster. Your captain gets an email on approval, rejection, or any status change."}
         </p>
         <Btn onClick={() => router.push(`/tournaments/${evId}`)}>View event</Btn>
       </div>
@@ -156,7 +441,7 @@ export function RegisterForm({
       <PageHead
         kicker="Competition"
         title="Register a Team"
-        sub="Free entry. NRV staff review every registration."
+        sub="Free entry. NRV staff review every registration — your captain is emailed on every status change. One team per account, across every team role."
       />
       {openEvents.length === 0 ? (
         <Card pad={28}>
@@ -181,22 +466,24 @@ export function RegisterForm({
             </div>
           )}
 
-          <div
-            className="font-display font-extrabold text-[15px] tracking-[3px] text-[#E6E6E6] uppercase flex items-center gap-2.5"
-            style={{ margin: "40px 0 16px" }}
-          >
-            <Spark size={10} />
-            Your team
-          </div>
+          <SectionHeading>Team</SectionHeading>
           {!teamChecked ? (
             <div className="font-mono text-[11px] text-[#555]">Checking your team…</div>
           ) : myTeam ? (
             <Card pad={18}>
-              <div className="font-display font-bold text-[15px] text-[#E6E6E6] uppercase">
-                {myTeam.name}
-              </div>
-              <div className="font-mono text-[10px] text-[#555] mt-1">
-                {myTeam.tag} · {myTeam.game}
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className="w-1 h-6" style={{ background: myTeam.color ?? "#7E82AC" }} />
+                <div>
+                  <div className="font-display font-bold text-[15px] text-[#E6E6E6] uppercase">
+                    {myTeam.name}
+                  </div>
+                  <div className="font-mono text-[10px] text-[#555] mt-1">
+                    {myTeam.tag} · {myTeam.game}
+                  </div>
+                </div>
+                <Pill color={rosterSize < MIN_ROSTER_SIZE || rosterSize > MAX_ROSTER_SIZE ? "#f87171" : "#4ade80"}>
+                  {rosterSize}/{MAX_ROSTER_SIZE} roster
+                </Pill>
               </div>
             </Card>
           ) : (
@@ -234,29 +521,92 @@ export function RegisterForm({
             </Card>
           )}
 
-          <div
-            className="font-display font-extrabold text-[15px] tracking-[3px] text-[#E6E6E6] uppercase flex items-center gap-2.5"
-            style={{ margin: "40px 0 16px" }}
-          >
-            <Spark size={10} />
-            Contact
-          </div>
+          {myTeam && (
+            <>
+              <SectionHeading>Team staff</SectionHeading>
+              <div className="font-mono text-[10px] text-[#555] leading-[1.7] mb-3.5" style={{ marginBottom: 14 }}>
+                Optional, add as needed. A captain can also be one of the five listed players — use
+                &quot;Mark as captain&quot; on their row instead. At most one person may be captain.
+              </div>
+              {staffMembers.map((m) => (
+                <StaffRow
+                  key={m.id}
+                  member={m}
+                  busy={busy}
+                  onAdd={() => {}}
+                  onSetRole={(role) => updateMember(m.userId, { teamRole: role })}
+                  onRemove={() => removeMember(m.userId)}
+                />
+              ))}
+              <StaffRow busy={busy} onAdd={addStaffMember} onSetRole={() => {}} onRemove={() => {}} />
+
+              <SectionHeading>Players</SectionHeading>
+              {Array.from({ length: Math.max(MIN_ROSTER_SIZE, nonStaffMembers.length) }).map((_, i) => {
+                const member = nonStaffMembers[i];
+                return (
+                  <RosterRow
+                    key={member?.id ?? `player-slot-${i}`}
+                    index={i}
+                    title="Player"
+                    member={member}
+                    captainable
+                    isCaptain={member?.teamRole === "captain"}
+                    roles={GAME_ROLES[myTeam.game]}
+                    busy={busy}
+                    onAdd={addMember}
+                    onRemove={member ? () => removeMember(member.userId) : undefined}
+                    onSetCaptain={(checked) => setPlayerCaptain(member, checked)}
+                    onSetPosition={(position) => updateMember(member!.userId, { position })}
+                  />
+                );
+              })}
+
+              <SectionHeading>Substitutes</SectionHeading>
+              {Array.from({ length: subSlots }).map((_, i) => {
+                const member = nonStaffMembers[MIN_ROSTER_SIZE + i];
+                return (
+                  <RosterRow
+                    key={member?.id ?? `sub-slot-${i}`}
+                    index={i}
+                    title="Substitute"
+                    member={member}
+                    roles={GAME_ROLES[myTeam.game]}
+                    busy={busy}
+                    onAdd={addMember}
+                    onRemove={
+                      member
+                        ? () => removeMember(member.userId)
+                        : () => setSubSlots((n) => Math.max(0, n - 1))
+                    }
+                    onSetPosition={(position) => updateMember(member!.userId, { position })}
+                  />
+                );
+              })}
+              {subSlots < MAX_SUBS && (
+                <Btn variant="ghost" onClick={() => setSubSlots((n) => n + 1)} style={{ padding: "7px 14px" }}>
+                  + Add substitute ({subSlots}/{MAX_SUBS})
+                </Btn>
+              )}
+            </>
+          )}
+
+          {captainMember && (
+            <div className="font-mono text-[10px] text-[#555] mt-3.5" style={{ marginTop: 14 }}>
+              Captain: <span className="text-[#BFC2DE]">{captainMember.user?.name}</span>
+            </div>
+          )}
+
+          <SectionHeading>Contact</SectionHeading>
           <Field label="Team contact email" req>
             <Input
               type="email"
               value={contactEmail}
               onChange={(e) => setContactEmail(e.target.value)}
-              placeholder="team@example.com"
+              placeholder="Distinct from any player's personal email"
             />
           </Field>
 
-          <div
-            className="font-display font-extrabold text-[15px] tracking-[3px] text-[#E6E6E6] uppercase flex items-center gap-2.5"
-            style={{ margin: "40px 0 16px" }}
-          >
-            <Spark size={10} />
-            Acknowledgements
-          </div>
+          <SectionHeading>Acknowledgements</SectionHeading>
           <label className="flex gap-3 items-start font-mono text-[11px] text-[#9a9db5] leading-[1.7] cursor-pointer mb-3">
             <input
               type="checkbox"
@@ -265,8 +615,8 @@ export function RegisterForm({
               className="mt-0.5"
             />
             <span>
-              I agree to the NRV Privacy Policy and Terms of Service, and confirm I am authorized
-              to submit this registration.
+              I agree to the NRV Privacy Policy and Terms of Service, and I confirm I am authorized
+              to submit this roster and player information.
               <span className="text-[#FF6A39]"> *</span>
             </span>
           </label>
@@ -278,7 +628,9 @@ export function RegisterForm({
               className="mt-0.5"
             />
             <span>
-              I have read and accept the current rulebook (v{rulebookVersion}).
+              I have read and accept the current rulebook (v{rulebookVersion}). The accepted version
+              and timestamp are stored with this registration.
+              <span className="text-[#FF6A39]"> *</span>
             </span>
           </label>
           <label className="flex gap-3 items-start font-mono text-[11px] text-[#9a9db5] leading-[1.7] cursor-pointer mb-3">
@@ -288,10 +640,7 @@ export function RegisterForm({
               onChange={(e) => setAcks((a) => ({ ...a, emailConsent: e.target.checked }))}
               className="mt-0.5"
             />
-            <span>
-              Email this team updates about NRV events and results.
-              <span className="text-[#FF6A39]"> *</span>
-            </span>
+            <span>Email this roster updates about NRV events and results (optional).</span>
           </label>
 
           {errs.length > 0 && (
@@ -305,11 +654,17 @@ export function RegisterForm({
           )}
 
           <div className="mt-7 flex items-center gap-4 flex-wrap">
-            <Btn onClick={submit} disabled={busy || rs === "closed"} style={{ padding: "13px 32px" }}>
+            <Btn
+              onClick={submit}
+              disabled={busy || rs === "closed" || !myTeam || rosterSize < MIN_ROSTER_SIZE || rosterSize > MAX_ROSTER_SIZE}
+              style={{ padding: "13px 32px" }}
+            >
               {rs === "closed" ? "Registration closed" : rs === "waitlist" ? "Join waitlist" : "Submit registration"}
             </Btn>
             {rs !== "closed" && ev && (
-              <span className="font-mono text-[10px] text-[#555]">closes {fmtD(ev.regCloseDate)}</span>
+              <span className="font-mono text-[10px] text-[#555]">
+                closes {fmtD(ev.regCloseDate)} · roster locks at close
+              </span>
             )}
           </div>
         </div>
