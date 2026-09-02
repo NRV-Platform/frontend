@@ -43,6 +43,20 @@ function sameDay(a: Date | null, b: Date | null): boolean {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
 
+function startOfToday(): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function isBeforeDay(a: Date, b: Date): boolean {
+  return (
+    a.getFullYear() < b.getFullYear() ||
+    (a.getFullYear() === b.getFullYear() &&
+      (a.getMonth() < b.getMonth() || (a.getMonth() === b.getMonth() && a.getDate() < b.getDate())))
+  );
+}
+
 const triggerBase =
   "w-full bg-[#141418] border border-[rgba(126,130,172,0.35)] text-[#E6E6E6] px-3 py-2.5 font-mono text-[12px] outline-none focus:border-[#7E82AC] transition-colors text-left cursor-pointer flex items-center justify-between gap-2";
 
@@ -61,11 +75,13 @@ function CalendarPanel({
   onSelect,
   viewDate,
   setViewDate,
+  minDate,
 }: {
   selected: Date | null;
   onSelect: (d: Date) => void;
   viewDate: Date;
   setViewDate: (d: Date) => void;
+  minDate?: Date;
 }) {
   const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
@@ -107,19 +123,22 @@ function CalendarPanel({
           if (!d) return <div key={i} />;
           const isSelected = sameDay(d, selected);
           const isToday = sameDay(d, today);
+          const isDisabled = !!minDate && isBeforeDay(d, minDate);
           return (
             <button
               key={i}
               type="button"
-              onClick={() => onSelect(d)}
-              className="aspect-square font-mono text-[11px] cursor-pointer transition-colors"
+              disabled={isDisabled}
+              onClick={() => !isDisabled && onSelect(d)}
+              className="aspect-square font-mono text-[11px] transition-colors"
               style={{
                 background: isSelected ? "#7E82AC" : "transparent",
-                color: isSelected ? "#fff" : isToday ? "#BFC2DE" : "#BFC2DE",
+                color: isDisabled ? "#333" : isSelected ? "#fff" : isToday ? "#BFC2DE" : "#BFC2DE",
                 border: isToday && !isSelected ? "1px solid rgba(126,130,172,0.5)" : "1px solid transparent",
+                cursor: isDisabled ? "not-allowed" : "pointer",
               }}
               onMouseEnter={(e) => {
-                if (!isSelected) e.currentTarget.style.background = "rgba(126,130,172,0.15)";
+                if (!isSelected && !isDisabled) e.currentTarget.style.background = "rgba(126,130,172,0.15)";
               }}
               onMouseLeave={(e) => {
                 if (!isSelected) e.currentTarget.style.background = "transparent";
@@ -139,20 +158,19 @@ export function DatePicker({
   onChange,
   placeholder = "Select date…",
   style,
+  disablePast = true,
 }: {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
   style?: React.CSSProperties;
+  /** Blocks selecting a date before today. Defaults to true. */
+  disablePast?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const selected = parseDateOnly(value);
   const [viewDate, setViewDate] = useState(selected ?? new Date());
   const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (selected) setViewDate(selected);
-  }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!open) return;
@@ -165,7 +183,14 @@ export function DatePicker({
 
   return (
     <div ref={ref} className="relative" style={style}>
-      <button type="button" onClick={() => setOpen((o) => !o)} className={triggerBase}>
+      <button
+        type="button"
+        onClick={() => {
+          setViewDate(selected ?? new Date());
+          setOpen((o) => !o);
+        }}
+        className={triggerBase}
+      >
         <span className={selected ? "" : "text-[#555]"}>
           {selected ? displayDate(selected) : placeholder}
         </span>
@@ -177,6 +202,7 @@ export function DatePicker({
             selected={selected}
             viewDate={viewDate}
             setViewDate={setViewDate}
+            minDate={disablePast ? startOfToday() : undefined}
             onSelect={(d) => {
               onChange(formatDateOnly(d));
               setOpen(false);
@@ -195,21 +221,20 @@ export function DateTimePicker({
   onChange,
   placeholder = "Select date & time…",
   style,
+  disablePast = true,
 }: {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
   style?: React.CSSProperties;
+  /** Blocks selecting a date before today. Defaults to true. */
+  disablePast?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [datePart, timePart] = value ? value.split("T") : ["", ""];
   const selected = datePart ? parseDateOnly(datePart) : null;
   const [viewDate, setViewDate] = useState(selected ?? new Date());
   const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (selected) setViewDate(selected);
-  }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!open) return;
@@ -229,7 +254,14 @@ export function DateTimePicker({
 
   return (
     <div ref={ref} className="relative" style={style}>
-      <button type="button" onClick={() => setOpen((o) => !o)} className={triggerBase}>
+      <button
+        type="button"
+        onClick={() => {
+          setViewDate(selected ?? new Date());
+          setOpen((o) => !o);
+        }}
+        className={triggerBase}
+      >
         <span className={selected ? "" : "text-[#555]"}>
           {selected ? `${displayDate(selected)}${timePart ? " · " + timePart : ""}` : placeholder}
         </span>
@@ -237,7 +269,13 @@ export function DateTimePicker({
       </button>
       {open && (
         <div className="absolute top-[calc(100%+6px)] left-0 z-[400] bg-[#0E0E0E] border border-[rgba(126,130,172,0.35)] border-t-2 border-t-[#7E82AC] p-3.5 shadow-[0_20px_40px_rgba(0,0,0,0.5)]">
-          <CalendarPanel selected={selected} viewDate={viewDate} setViewDate={setViewDate} onSelect={commitDate} />
+          <CalendarPanel
+            selected={selected}
+            viewDate={viewDate}
+            setViewDate={setViewDate}
+            minDate={disablePast ? startOfToday() : undefined}
+            onSelect={commitDate}
+          />
           <div className="mt-3 pt-3 border-t border-[rgba(126,130,172,0.2)] flex items-center gap-2.5">
             <span className="font-mono text-[9px] text-[#555] tracking-[2px] uppercase">Time</span>
             <input
