@@ -72,12 +72,12 @@ export function MVPNav() {
   const isStaff = user && (user.role === "admin" || user.role === "editor");
   const inDashboard = pathname?.startsWith("/dashboard") ?? false;
 
+  if (inDashboard) return null;
+
   return (
     <nav
       ref={ref}
-      className={`fixed top-0 left-0 right-0 z-[100] bg-[rgba(14,14,14,0.92)] backdrop-blur-md border-b border-[rgba(126,130,172,0.25)] h-16 items-center px-4 sm:px-10 ${
-        inDashboard ? "hidden md:flex" : "flex"
-      }`}
+      className="fixed top-0 left-0 right-0 z-[100] bg-[rgba(14,14,14,0.92)] backdrop-blur-md border-b border-[rgba(126,130,172,0.25)] h-16 flex items-center px-4 sm:px-10"
     >
       <div
         onClick={() => go("/")}
@@ -290,12 +290,9 @@ function AccountChip({
 export function MVPFooter() {
   const pathname = usePathname();
   const inDashboard = pathname?.startsWith("/dashboard") ?? false;
+  if (inDashboard) return null;
   return (
-    <footer
-      className={`border-t border-[rgba(126,130,172,0.2)] bg-[#0B0B0E] px-4 sm:px-10 py-10 mt-20 ${
-        inDashboard ? "hidden md:block" : ""
-      }`}
-    >
+    <footer className="border-t border-[rgba(126,130,172,0.2)] bg-[#0B0B0E] px-4 sm:px-10 py-10 mt-20">
       <div className="max-w-[1200px] mx-auto flex items-center justify-between flex-wrap gap-4">
         <span className="font-mono text-[10px] text-[#444] tracking-[2px] uppercase">
           NERVE ESPORTS

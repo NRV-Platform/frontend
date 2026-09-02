@@ -9,6 +9,7 @@ import type { PublicUser } from "@/lib/types";
 
 const DASHBOARD_PAGES = [
   { id: "", label: "Overview", icon: "▦" },
+  { id: "profile", label: "Profile", icon: "◇" },
   { id: "team", label: "Team Management", icon: "⚑" },
   { id: "register", label: "Register a Team", icon: "＋" },
 ];
@@ -90,11 +91,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (loading) return null;
 
   if (!user) {
-    return (
-      <div style={{ paddingTop: 110 }}>
-        <AccessDenied need="Log in to see your dashboard." />
-      </div>
-    );
+    return <AccessDenied need="Log in to see your dashboard." />;
   }
 
   const activeId = pathname?.replace(/^\/dashboard\/?/, "") ?? "";
@@ -106,9 +103,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   };
 
   return (
-    <div className="flex flex-col md:flex-row" style={{ paddingTop: 64 }}>
+    <div className="flex flex-col md:flex-row">
       {/* Mobile top bar */}
-      <div className="md:hidden sticky z-[150] flex items-center gap-3 bg-[#111] border-b border-[rgba(126,130,172,0.2)] px-4 py-3" style={{ top: 64 }}>
+      <div className="md:hidden sticky top-0 z-[150] flex items-center gap-3 bg-[#111] border-b border-[rgba(126,130,172,0.2)] px-4 py-3">
         <button
           onClick={() => setDrawerOpen(true)}
           aria-label="Open dashboard menu"
@@ -122,10 +119,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </div>
 
       {/* Desktop sidebar */}
-      <aside
-        className="hidden md:flex w-[222px] bg-[#111] flex-shrink-0 border-r border-[rgba(126,130,172,0.2)] flex-col sticky overflow-y-auto"
-        style={{ top: 64, height: "calc(100vh - 64px)" }}
-      >
+      <aside className="hidden md:flex w-[222px] bg-[#111] flex-shrink-0 border-r border-[rgba(126,130,172,0.2)] flex-col sticky top-0 h-screen overflow-y-auto">
         <SidebarContent user={user} activeId={activeId} onNavigate={navigate} onLogout={handleLogout} />
       </aside>
 

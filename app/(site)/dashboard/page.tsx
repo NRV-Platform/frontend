@@ -3,12 +3,14 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
-import type { Team } from "@/lib/types";
+import type { PlayerStatRow, Team } from "@/lib/types";
 import { PageHead, SectionLabel, Card, Pill } from "@/components/ui/primitives";
+import { StatCard } from "@/components/admin/shared";
 
 export default function DashboardOverviewPage() {
   const { user } = useAuth();
   const [team, setTeam] = useState<Team | null>(null);
+  const [stats, setStats] = useState<PlayerStatRow | null>(null);
   const [checked, setChecked] = useState(false);
 
   useEffect(() => {
@@ -19,11 +21,21 @@ export default function DashboardOverviewPage() {
         return;
       }
       try {
-        const teams = await api.get<Team[]>("/teams", { auth: false });
+        const [teams, playerStats] = await Promise.all([
+          api.get<Team[]>("/teams", { auth: false }),
+          api.get<PlayerStatRow[]>("/stats/players", { auth: false }).catch(() => []),
+        ]);
         const mine = teams.find((t) => t.memberships?.some((m) => m.userId === user.id));
-        if (!cancelled) setTeam(mine ?? null);
+        const myStats = playerStats.find((r) => r.userId === user.id) ?? null;
+        if (!cancelled) {
+          setTeam(mine ?? null);
+          setStats(myStats);
+        }
       } catch {
-        if (!cancelled) setTeam(null);
+        if (!cancelled) {
+          setTeam(null);
+          setStats(null);
+        }
       } finally {
         if (!cancelled) setChecked(true);
       }
@@ -36,39 +48,25 @@ export default function DashboardOverviewPage() {
   if (!user || !checked) return null;
 
   const myMembership = team?.memberships?.find((m) => m.userId === user.id);
-  const initials = user.name
-    .split(" ")
-    .map((w) => w[0])
-    .join("");
 
   return (
     <div>
       <PageHead kicker="Account" title="Overview" sub={`Welcome back, ${user.name}.`} />
 
-      <SectionLabel>Profile</SectionLabel>
-      <Card pad={22} className="mb-9" style={{ marginBottom: 36 }}>
-        <div className="flex items-center gap-4 flex-wrap">
-          <div className="w-14 h-14 rounded-full bg-[#23253A] text-[#BFC2DE] flex items-center justify-center font-display font-extrabold text-[18px] flex-shrink-0">
-            {initials}
-          </div>
-          <div className="flex-1 min-w-[200px]">
-            <div className="font-display font-extrabold text-[18px] tracking-[0.5px] text-[#E6E6E6] uppercase">
-              {user.name}
-            </div>
-            <div className="font-mono text-[11px] text-[#888BA0] mt-0.5">{user.email}</div>
-          </div>
-          <div className="flex gap-2 flex-wrap">
-            <Pill color="#BFC2DE">{user.role}</Pill>
-            {user.mfaEnabled && <Pill color="#4ade80">MFA on</Pill>}
-          </div>
+      <SectionLabel>My Stats</SectionLabel>
+      <div className="flex gap-3 flex-wrap mb-2">
+        <StatCard label="Maps played" value={stats?.maps ?? 0} />
+        <StatCard label="K/D" value={stats ? stats.kd.toFixed(2) : "—"} />
+        <StatCard label="ACS" value={stats?.acs ?? "—"} />
+        <StatCard label="ADR" value={stats?.adr ?? "—"} />
+        <StatCard label="HS%" value={stats ? `${stats.hsPct}%` : "—"} />
+        <StatCard label="KAST" value={stats ? `${stats.kast}%` : "—"} />
+      </div>
+      {!stats && (
+        <div className="font-mono text-[10px] text-[#555] leading-[1.7] mt-3 mb-9" style={{ marginBottom: 36 }}>
+          No synced stats yet — figures appear once you&apos;ve played a match with stats ingested.
         </div>
-        <div className="mt-5 pt-5 border-t border-white/[0.06] grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <div className="font-mono text-[9px] text-[#555] tracking-[2px] uppercase mb-1">Player tag</div>
-            <div className="font-mono text-[12px] text-[#BFC2DE]">{user.playerTag || "—"}</div>
-          </div>
-        </div>
-      </Card>
+      )}
 
       <SectionLabel>My Team</SectionLabel>
       {team ? (
