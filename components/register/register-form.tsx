@@ -18,6 +18,7 @@ import {
   Empty,
   Spark,
   fmtD,
+  ConfirmModal,
 } from "@/components/ui/primitives";
 
 const MIN_ROSTER_SIZE = 5;
@@ -42,6 +43,7 @@ function RosterRow({
   captainable,
   isCaptain,
   roles,
+  takenRoles,
   onAdd,
   onRemove,
   onSetCaptain,
@@ -52,20 +54,31 @@ function RosterRow({
   captainable?: boolean;
   isCaptain?: boolean;
   roles?: string[];
+  takenRoles?: Set<string>;
   onAdd: (tag: string, position?: string, captain?: boolean) => void;
   onRemove?: () => void;
   onSetCaptain?: (checked: boolean) => void;
   onSetPosition?: (position: string) => void;
   busy: boolean;
 }) {
+  const toast = useToast();
   const [tag, setTag] = useState("");
   const [draftPosition, setDraftPosition] = useState("");
   const [draftCaptain, setDraftCaptain] = useState(false);
   const hasRoles = !!roles && roles.length > 0;
+  const currentValue = member ? member.position ?? "" : draftPosition;
+  const roleOptions = [
+    { value: "", label: "" },
+    ...(roles ?? []).map((r) => ({
+      value: r,
+      label: r,
+      disabled: r !== currentValue && !!takenRoles?.has(r),
+    })),
+  ];
 
   return (
     <div className="flex gap-3 mb-2.5 items-end flex-wrap">
-      <Field label="Player tag" style={{ flex: "2 1 160px" }}>
+      <Field label="Player tag" req style={{ flex: "2 1 160px" }}>
         {member ? (
           <div className="font-mono text-[12px] text-[#BFC2DE] py-2.5">
             {member.user?.name ?? member.user?.playerTag}{" "}
@@ -76,13 +89,13 @@ function RosterRow({
         )}
       </Field>
       {hasRoles && (
-        <Field label="Role" style={{ flex: "1 1 130px" }}>
+        <Field label="Role" req={!member} style={{ flex: "1 1 130px" }}>
           <Select
-            value={member ? member.position ?? "" : draftPosition}
+            value={currentValue}
             onChange={(e) =>
               member ? onSetPosition?.(e.target.value) : setDraftPosition(e.target.value)
             }
-            options={["", ...(roles ?? [])]}
+            options={roleOptions}
           />
         </Field>
       )}
@@ -107,7 +120,14 @@ function RosterRow({
           style={{ padding: "9px 16px" }}
           disabled={busy}
           onClick={() => {
-            if (!tag.trim()) return;
+            if (!tag.trim()) {
+              toast("Enter a player tag", "error");
+              return;
+            }
+            if (hasRoles && !draftPosition) {
+              toast("Choose a role for this player before adding", "error");
+              return;
+            }
             onAdd(tag.trim(), draftPosition || undefined, draftCaptain);
             setTag("");
             setDraftPosition("");
@@ -213,30 +233,42 @@ export function RegisterForm({
   const ev = events.find((e) => e.id === evId);
 
   const [myTeam, setMyTeam] = useState<Team | null>(null);
+  const [existingTeam, setExistingTeam] = useState<Team | null>(null);
   const [teamChecked, setTeamChecked] = useState(false);
-  const [newTeam, setNewTeam] = useState({ name: "", tag: "", game: GAMES[0], color: "#7E82AC" });
+  const [newTeam, setNewTeam] = useState({ name: "", tag: "", color: "#7E82AC" });
   const [contactEmail, setContactEmail] = useState("");
   const [acks, setAcks] = useState({ tos: false, rulebook: false, emailConsent: false });
   const [errs, setErrs] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<"ok" | "waitlist" | null>(null);
   const [subSlots, setSubSlots] = useState(0);
+  const [confirmCreateTeam, setConfirmCreateTeam] = useState(false);
+
+  // Reset the active team selection whenever the event (and thus game)
+  // changes, so a team picked for one game never carries into another.
+  const [lastEvId, setLastEvId] = useState(evId);
+  if (evId !== lastEvId) {
+    setLastEvId(evId);
+    setMyTeam(null);
+  }
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      if (!user) {
+      if (!user || !ev) {
         if (!cancelled) setTeamChecked(true);
         return;
       }
       try {
         const teams = await api.get<Team[]>("/teams", { auth: false });
-        const mine = teams.find((t) =>
-          t.memberships?.some((m) => m.userId === user.id && m.teamRole === "coach")
+        const mine = teams.find(
+          (t) =>
+            t.game === ev.game &&
+            t.memberships?.some((m) => m.userId === user.id && m.teamRole === "coach")
         );
-        if (!cancelled) setMyTeam(mine ?? null);
+        if (!cancelled) setExistingTeam(mine ?? null);
       } catch {
-        if (!cancelled) setMyTeam(null);
+        if (!cancelled) setExistingTeam(null);
       } finally {
         if (!cancelled) setTeamChecked(true);
       }
@@ -244,24 +276,32 @@ export function RegisterForm({
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [user, ev]);
+
 
   const rs = ev ? regState(ev, ev.teams?.length ?? 0) : "closed";
 
-  const createTeam = async () => {
+  const requestCreateTeam = () => {
     if (!newTeam.name.trim() || !/^[A-Z0-9]{2,5}$/.test(newTeam.tag)) {
       toast("Team name and a 2–5 char tag are required", "error");
       return;
     }
+    if (!ev) return;
+    setConfirmCreateTeam(true);
+  };
+
+  const createTeam = async () => {
+    if (!ev) return;
     setBusy(true);
     try {
-      const team = await api.post<Team>("/teams", newTeam);
+      const team = await api.post<Team>("/teams", { ...newTeam, game: ev.game });
       setMyTeam(team);
       toast("Team created — you are its coach");
     } catch (e) {
       toast(e instanceof ApiError ? e.message : "Failed to create team", "error");
     } finally {
       setBusy(false);
+      setConfirmCreateTeam(false);
     }
   };
 
@@ -338,6 +378,9 @@ export function RegisterForm({
   const roster = myTeam?.memberships ?? [];
   const staffMembers = roster.filter((m) => m.teamRole === "coach" || m.teamRole === "assistant_coach");
   const nonStaffMembers = roster.filter((m) => m.teamRole !== "coach" && m.teamRole !== "assistant_coach");
+  const takenRoles = new Set(
+    nonStaffMembers.map((m) => m.position).filter((p): p is string => !!p)
+  );
   const rosterSize = roster.length;
   const captainMember = roster.find((m) => m.teamRole === "captain");
 
@@ -463,42 +506,77 @@ export function RegisterForm({
                 <Pill color={rosterSize < MIN_ROSTER_SIZE || rosterSize > MAX_ROSTER_SIZE ? "#f87171" : "#4ade80"}>
                   {rosterSize}/{MAX_ROSTER_SIZE} roster
                 </Pill>
+                {existingTeam && myTeam.id === existingTeam.id && (
+                  <button
+                    onClick={() => setMyTeam(null)}
+                    className="ml-auto font-mono text-[10px] text-[#888BA0] tracking-[1px] uppercase cursor-pointer bg-transparent border-none hover:text-[#E6E6E6]"
+                  >
+                    ✕ Not this team
+                  </button>
+                )}
               </div>
             </Card>
           ) : (
-            <Card pad={20}>
-              <div className="font-mono text-[10px] text-[#555] leading-[1.7] mb-4">
-                You don&apos;t coach a team yet. Create one to register — you become its coach.
-              </div>
-              <div className="nrv-grid3" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
-                <Field label="Team name" req>
-                  <Input value={newTeam.name} onChange={(e) => setNewTeam({ ...newTeam, name: e.target.value })} />
-                </Field>
-                <Field label="Tag (2–5 chars)" req>
-                  <Input
-                    value={newTeam.tag}
-                    maxLength={5}
-                    onChange={(e) =>
-                      setNewTeam({ ...newTeam, tag: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "") })
-                    }
-                    style={{ letterSpacing: 3 }}
-                  />
-                </Field>
-                <Field label="Game">
-                  <Select
-                    value={newTeam.game}
-                    onChange={(e) => setNewTeam({ ...newTeam, game: e.target.value })}
-                    options={GAMES}
-                  />
-                </Field>
-              </div>
-              <div className="mt-4">
-                <Btn onClick={createTeam} disabled={busy}>
-                  Create team
-                </Btn>
-              </div>
-            </Card>
+            <>
+              {existingTeam && (
+                <div className="mb-3.5 font-mono text-[11px] text-[#888BA0] leading-[1.7]" style={{ marginBottom: 14 }}>
+                  You already coach <span className="text-[#E6E6E6]">{existingTeam.name}</span> (
+                  {existingTeam.tag}) for {existingTeam.game}.{" "}
+                  <button
+                    onClick={() => setMyTeam(existingTeam)}
+                    className="text-[#BFC2DE] underline cursor-pointer bg-transparent border-none font-mono text-[11px] p-0"
+                  >
+                    Use my existing team instead
+                  </button>
+                </div>
+              )}
+              <Card pad={20}>
+                <div className="font-mono text-[10px] text-[#555] leading-[1.7] mb-4">
+                  Create a new team — you become its coach.
+                </div>
+                <div className="nrv-grid3" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
+                  <Field label="Team name" req>
+                    <Input value={newTeam.name} onChange={(e) => setNewTeam({ ...newTeam, name: e.target.value })} />
+                  </Field>
+                  <Field label="Tag (2–5 chars)" req>
+                    <Input
+                      value={newTeam.tag}
+                      maxLength={5}
+                      onChange={(e) =>
+                        setNewTeam({ ...newTeam, tag: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "") })
+                      }
+                      style={{ letterSpacing: 3 }}
+                    />
+                  </Field>
+                  <Field label="Game">
+                    <Select value={ev?.game ?? ""} options={ev ? [ev.game] : GAMES} disabled />
+                  </Field>
+                </div>
+                <div className="mt-4">
+                  <Btn onClick={requestCreateTeam} disabled={busy}>
+                    Create team
+                  </Btn>
+                </div>
+              </Card>
+            </>
           )}
+
+          <ConfirmModal
+            open={confirmCreateTeam}
+            title="Create this team?"
+            danger={false}
+            confirmLabel="Create team"
+            body={
+              <span>
+                This creates <span className="text-[#E6E6E6]">{newTeam.name}</span> (
+                {newTeam.tag}) immediately — you become its coach right away, before you submit
+                any registration. You can only coach one {ev?.game} team at a time, so make sure
+                this is the roster you want.
+              </span>
+            }
+            onCancel={() => setConfirmCreateTeam(false)}
+            onConfirm={createTeam}
+          />
 
           {myTeam && (
             <>

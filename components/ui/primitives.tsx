@@ -201,7 +201,7 @@ export function TextArea(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
   );
 }
 
-type SelectOption = string | { value: string; label: string };
+type SelectOption = string | { value: string; label: string; disabled?: boolean };
 
 export function Select({
   options,
@@ -216,7 +216,7 @@ export function Select({
             {o}
           </option>
         ) : (
-          <option key={o.value} value={o.value}>
+          <option key={o.value} value={o.value} disabled={o.disabled}>
             {o.label}
           </option>
         )
