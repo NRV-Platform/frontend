@@ -38,8 +38,6 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
 
 
 function RosterRow({
-  index,
-  title,
   member,
   captainable,
   isCaptain,
@@ -50,8 +48,6 @@ function RosterRow({
   onSetPosition,
   busy,
 }: {
-  index: number;
-  title: string;
   member?: TeamMembership;
   captainable?: boolean;
   isCaptain?: boolean;
@@ -65,84 +61,67 @@ function RosterRow({
   const [tag, setTag] = useState("");
   const [draftPosition, setDraftPosition] = useState("");
   const [draftCaptain, setDraftCaptain] = useState(false);
-
   const hasRoles = !!roles && roles.length > 0;
 
   return (
-    <div className="flex items-start gap-2.5 mb-3" style={{ marginBottom: 12 }}>
-      <div
-        className="flex-1"
-        style={{
-          border: "1px solid rgba(126,130,172,0.25)",
-          padding: 16,
-          background: "rgba(20,20,24,0.5)",
-        }}
-      >
-        <div className="flex items-center mb-3.5 gap-3" style={{ marginBottom: 14 }}>
-          <span className="font-display font-extrabold text-[12px] tracking-[2px] text-[#BFC2DE] uppercase">
-            {title} {index + 1}
-          </span>
-          {hasRoles && (
-            <div className="flex-1 flex justify-center">
-              <Select
-                value={member ? member.position ?? "" : draftPosition}
-                onChange={(e) =>
-                  member ? onSetPosition?.(e.target.value) : setDraftPosition(e.target.value)
-                }
-                options={["", ...(roles ?? [])]}
-                style={{ width: 150, padding: "5px 8px", fontSize: 10 }}
-              />
-            </div>
-          )}
-          {captainable && (
-            <label
-              className="flex items-center gap-1.5 font-mono text-[10px] tracking-[1px] uppercase cursor-pointer"
-              style={{ color: isCaptain || draftCaptain ? "#E6E6E6" : "#888BA0", marginLeft: hasRoles ? 0 : "auto" }}
-            >
-              <input
-                type="checkbox"
-                checked={member ? !!isCaptain : draftCaptain}
-                onChange={(e) =>
-                  member ? onSetCaptain?.(e.target.checked) : setDraftCaptain(e.target.checked)
-                }
-              />{" "}
-              Mark as captain
-            </label>
-          )}
-        </div>
+    <div className="flex gap-3 mb-2.5 items-end flex-wrap">
+      <Field label="Player tag" style={{ flex: "2 1 160px" }}>
         {member ? (
-          <div>
-            <div className="text-[#E6E6E6] font-display font-bold text-[13px] tracking-[1px] uppercase">
-              {member.user?.name ?? "—"}
-            </div>
-            <div className="text-[10px] text-[#555] font-mono">{member.user?.playerTag}</div>
+          <div className="font-mono text-[12px] text-[#BFC2DE] py-2.5">
+            {member.user?.name ?? member.user?.playerTag}{" "}
+            <span className="text-[#555]">({member.user?.playerTag})</span>
           </div>
         ) : (
-          <div className="flex gap-2.5 items-end flex-wrap">
-            <Field label="Player tag" req className="flex-1" style={{ minWidth: 200 }}>
-              <Input value={tag} onChange={(e) => setTag(e.target.value)} placeholder="Name#1234" />
-            </Field>
-            <Btn
-              variant="ghost"
-              style={{ padding: "9px 16px" }}
-              disabled={busy}
-              onClick={() => {
-                if (!tag.trim()) return;
-                onAdd(tag.trim(), draftPosition || undefined, draftCaptain);
-                setTag("");
-                setDraftPosition("");
-                setDraftCaptain(false);
-              }}
-            >
-              Add
-            </Btn>
-          </div>
+          <Input value={tag} onChange={(e) => setTag(e.target.value)} placeholder="Name#1234" />
         )}
-      </div>
+      </Field>
+      {hasRoles && (
+        <Field label="Role" style={{ flex: "1 1 130px" }}>
+          <Select
+            value={member ? member.position ?? "" : draftPosition}
+            onChange={(e) =>
+              member ? onSetPosition?.(e.target.value) : setDraftPosition(e.target.value)
+            }
+            options={["", ...(roles ?? [])]}
+          />
+        </Field>
+      )}
+      {captainable && (
+        <label
+          className="flex items-center gap-1.5 font-mono text-[10px] tracking-[1px] uppercase cursor-pointer"
+          style={{ color: (member ? isCaptain : draftCaptain) ? "#E6E6E6" : "#888BA0", paddingBottom: 10 }}
+        >
+          <input
+            type="checkbox"
+            checked={member ? !!isCaptain : draftCaptain}
+            onChange={(e) =>
+              member ? onSetCaptain?.(e.target.checked) : setDraftCaptain(e.target.checked)
+            }
+          />{" "}
+          Captain
+        </label>
+      )}
+      {!member && (
+        <Btn
+          variant="ghost"
+          style={{ padding: "9px 16px" }}
+          disabled={busy}
+          onClick={() => {
+            if (!tag.trim()) return;
+            onAdd(tag.trim(), draftPosition || undefined, draftCaptain);
+            setTag("");
+            setDraftPosition("");
+            setDraftCaptain(false);
+          }}
+        >
+          Add
+        </Btn>
+      )}
       {onRemove && (
         <button
           onClick={onRemove}
-          className="bg-transparent border-none text-[#555] hover:text-[#f87171] cursor-pointer font-mono text-[16px] flex-shrink-0 mt-1"
+          className="bg-transparent border-none text-[#555] hover:text-[#f87171] cursor-pointer font-mono text-[14px] px-1"
+          style={{ paddingBottom: 10 }}
         >
           ✕
         </button>
@@ -546,8 +525,6 @@ export function RegisterForm({
                 return (
                   <RosterRow
                     key={member?.id ?? `player-slot-${i}`}
-                    index={i}
-                    title="Player"
                     member={member}
                     captainable
                     isCaptain={member?.teamRole === "captain"}
@@ -567,8 +544,6 @@ export function RegisterForm({
                 return (
                   <RosterRow
                     key={member?.id ?? `sub-slot-${i}`}
-                    index={i}
-                    title="Substitute"
                     member={member}
                     roles={GAME_ROLES[myTeam.game]}
                     busy={busy}
