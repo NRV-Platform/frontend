@@ -477,24 +477,10 @@ export function Modal({
   );
 }
 
-export function fmtDT(iso?: string | null) {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  return (
-    d.toLocaleDateString("en-US", { month: "short", day: "numeric" }).toUpperCase() +
-    " · " +
-    d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
-  );
-}
-
-export function fmtD(iso?: string | null) {
-  if (!iso) return "—";
-  const hasTime = iso.includes("T");
-  const d = new Date(hasTime ? iso : iso + "T12:00");
-  return d
-    .toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-    .toUpperCase();
-}
+// fmtDT/fmtD live in lib/derived.ts — pure functions with no client-only
+// dependency, so they're usable from Server Components too. Re-exported
+// here so existing imports from this module keep working.
+export { fmtDT, fmtD } from "@/lib/derived";
 
 export function Md({ text, className = "" }: { text: string; className?: string }) {
   const blocks = String(text || "").split(/\n\n+/);

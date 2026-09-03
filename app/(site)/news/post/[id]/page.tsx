@@ -2,7 +2,8 @@ import Link from "next/link";
 import { apiGet } from "@/lib/api-server";
 import type { NewsPost } from "@/lib/types";
 import { PageShell } from "@/components/nav";
-import { Pill, Md, Empty, fmtD } from "@/components/ui/primitives";
+import { Pill, Md, Empty } from "@/components/ui/primitives";
+import { fmtD } from "@/lib/derived";
 
 export const revalidate = 30;
 

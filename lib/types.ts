@@ -31,10 +31,13 @@ export interface User extends PublicUser {
   teamMembership?: TeamMembership | null;
 }
 
+export type MembershipSlot = "staff" | "player";
+
 export interface TeamMembership {
   id: string;
   userId: string;
   teamId: string;
+  slot: MembershipSlot;
   teamRole: TeamRole;
   position?: string | null;
   team?: Team;

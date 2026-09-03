@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/components/ui/toast";
 import { api, ApiError } from "@/lib/api";
 import { regState, GAMES, GAME_ROLES } from "@/lib/derived";
-import type { NrvEvent, Team, TeamMembership } from "@/lib/types";
+import type { MembershipSlot, NrvEvent, Team, TeamMembership } from "@/lib/types";
 import {
   PageHead,
   Card,
@@ -25,12 +25,11 @@ const MIN_ROSTER_SIZE = 5;
 const MAX_ROSTER_SIZE = 8;
 const MAX_SUBS = 2;
 
-// A player/staff row not yet sent to the backend — held in local state
-// until "Submit registration" is clicked, so browsing the register page
-// never writes to a team's real roster on its own.
 interface PendingMember {
   localId: string;
   tag: string;
+  name: string;
+  slot: MembershipSlot;
   teamRole: string;
   position?: string;
 }
@@ -40,12 +39,13 @@ function toDisplayMember(p: PendingMember): TeamMembership {
     id: p.localId,
     userId: p.localId,
     teamId: "",
+    slot: p.slot,
     teamRole: p.teamRole as TeamMembership["teamRole"],
     position: p.position ?? null,
     user: {
       id: p.localId,
       email: "",
-      name: p.tag,
+      name: p.name,
       playerTag: p.tag,
       role: "user",
       mfaEnabled: false,
@@ -72,6 +72,7 @@ function RosterRow({
   isCaptain,
   roles,
   takenRoles,
+  roleRequired = true,
   onAdd,
   onRemove,
   onSetCaptain,
@@ -83,6 +84,8 @@ function RosterRow({
   isCaptain?: boolean;
   roles?: string[];
   takenRoles?: Set<string>;
+  /** Substitutes may have an unknown role until they're subbed in. */
+  roleRequired?: boolean;
   onAdd: (tag: string, position?: string, captain?: boolean) => void;
   onRemove?: () => void;
   onSetCaptain?: (checked: boolean) => void;
@@ -111,18 +114,13 @@ function RosterRow({
           <div className="font-mono text-[12px] text-[#BFC2DE] py-2.5">
             {member.user?.name ?? member.user?.playerTag}{" "}
             <span className="text-[#555]">({member.user?.playerTag})</span>
-            {member.id.startsWith("pending-") && (
-              <span className="text-[#fbbf24] text-[9px] tracking-[1px] uppercase ml-2">
-                Not saved yet
-              </span>
-            )}
           </div>
         ) : (
           <Input value={tag} onChange={(e) => setTag(e.target.value)} placeholder="Name#1234" />
         )}
       </Field>
       {hasRoles && (
-        <Field label="Role" req={!member} style={{ flex: "1 1 130px" }}>
+        <Field label="Role" req={!member && roleRequired} style={{ flex: "1 1 130px" }}>
           <Select
             value={currentValue}
             onChange={(e) =>
@@ -157,7 +155,7 @@ function RosterRow({
               toast("Enter a player tag", "error");
               return;
             }
-            if (hasRoles && !draftPosition) {
+            if (hasRoles && roleRequired && !draftPosition) {
               toast("Choose a role for this player before adding", "error");
               return;
             }
@@ -206,11 +204,6 @@ function StaffRow({
           <div className="font-mono text-[12px] text-[#BFC2DE] py-2.5">
             {member.user?.name ?? member.user?.playerTag}{" "}
             <span className="text-[#555]">({member.user?.playerTag})</span>
-            {member.id.startsWith("pending-") && (
-              <span className="text-[#fbbf24] text-[9px] tracking-[1px] uppercase ml-2">
-                Not saved yet
-              </span>
-            )}
           </div>
         ) : (
           <Input value={tag} onChange={(e) => setTag(e.target.value)} placeholder="Name#1234" />
@@ -347,20 +340,45 @@ export function RegisterForm({
     }
   };
 
-  // Adding a player/staff member only stages it locally — nothing reaches
-  // the backend until "Submit registration" flushes pendingMembers.
-  const addMember = (playerTag: string, position?: string, captain?: boolean) => {
+
+  const lookupPlayerName = async (playerTag: string): Promise<string | null> => {
+    try {
+      const found = await api.get<{ name: string }>(`/users/by-tag/${encodeURIComponent(playerTag)}`);
+      return found.name;
+    } catch {
+      return null;
+    }
+  };
+
+  const addMember = async (playerTag: string, position?: string, captain?: boolean) => {
+    const name = await lookupPlayerName(playerTag);
+    if (!name) {
+      toast("No user found with that player tag", "error");
+      return;
+    }
     setPendingMembers((list) => [
       ...list,
-      { localId: nextLocalId(), tag: playerTag, teamRole: captain ? "captain" : "member", position },
+      {
+        localId: nextLocalId(),
+        tag: playerTag,
+        name,
+        slot: "player",
+        teamRole: captain ? "captain" : "member",
+        position,
+      },
     ]);
     toast("Player added to draft roster");
   };
 
-  const addStaffMember = (playerTag: string, role: string) => {
+  const addStaffMember = async (playerTag: string, role: string) => {
+    const name = await lookupPlayerName(playerTag);
+    if (!name) {
+      toast("No user found with that player tag", "error");
+      return;
+    }
     setPendingMembers((list) => [
       ...list,
-      { localId: nextLocalId(), tag: playerTag, teamRole: role },
+      { localId: nextLocalId(), tag: playerTag, name, slot: "staff", teamRole: role },
     ]);
     toast("Staff added to draft roster");
   };
@@ -370,7 +388,11 @@ export function RegisterForm({
   // Real members are edited immediately via the API (they already exist
   // regardless of this registration); pending ones are edited in place
   // in local state since they haven't been created yet.
-  const updateMember = async (userId: string, data: { teamRole?: string; position?: string }) => {
+  const updateMember = async (
+    userId: string,
+    slot: MembershipSlot,
+    data: { teamRole?: string; position?: string },
+  ) => {
     if (isPendingId(userId)) {
       setPendingMembers((list) =>
         list.map((p) => (p.localId === userId ? { ...p, ...data } : p))
@@ -380,7 +402,7 @@ export function RegisterForm({
     if (!myTeam) return;
     setBusy(true);
     try {
-      const updated = await api.patch<Team>(`/teams/${myTeam.id}/members/${userId}`, data);
+      const updated = await api.patch<Team>(`/teams/${myTeam.id}/members/${userId}/${slot}`, data);
       setMyTeam(updated);
     } catch (e) {
       toast(e instanceof ApiError ? e.message : "Failed to update member", "error");
@@ -389,7 +411,7 @@ export function RegisterForm({
     }
   };
 
-  const removeMember = async (userId: string) => {
+  const removeMember = async (userId: string, slot: MembershipSlot) => {
     if (isPendingId(userId)) {
       setPendingMembers((list) => list.filter((p) => p.localId !== userId));
       return;
@@ -397,7 +419,7 @@ export function RegisterForm({
     if (!myTeam) return;
     setBusy(true);
     try {
-      const updated = await api.delete<Team>(`/teams/${myTeam.id}/members/${userId}`);
+      const updated = await api.delete<Team>(`/teams/${myTeam.id}/members/${userId}/${slot}`);
       setMyTeam(updated);
       toast("Removed from roster");
     } catch (e) {
@@ -410,17 +432,17 @@ export function RegisterForm({
   const realRoster = myTeam?.memberships ?? [];
   const pendingDisplay = pendingMembers.map(toDisplayMember);
   const roster = [...realRoster, ...pendingDisplay];
-  const staffMembers = roster.filter((m) => m.teamRole === "coach" || m.teamRole === "assistant_coach");
-  const nonStaffMembers = roster.filter((m) => m.teamRole !== "coach" && m.teamRole !== "assistant_coach");
+  const staffMembers = roster.filter((m) => m.slot === "staff");
+  const nonStaffMembers = roster.filter((m) => m.slot === "player");
   const takenRoles = new Set(
     nonStaffMembers.map((m) => m.position).filter((p): p is string => !!p)
   );
-  const rosterSize = roster.length;
+  const rosterSize = nonStaffMembers.length;
   const captainMember = roster.find((m) => m.teamRole === "captain");
 
   const setPlayerCaptain = (member: TeamMembership | undefined, checked: boolean) => {
     if (!member) return;
-    updateMember(member.userId, { teamRole: checked ? "captain" : "member" });
+    updateMember(member.userId, "player", { teamRole: checked ? "captain" : "member" });
   };
 
   const submit = async () => {
@@ -449,15 +471,19 @@ export function RegisterForm({
       const remaining = [...pendingMembers];
       while (remaining.length > 0) {
         const p = remaining[0];
-        const added = await api.post<Team>(`/teams/${teamId}/members`, { playerTag: p.tag });
+        const defaultRole = p.slot === "staff" ? "coach" : "member";
+        const added = await api.post<Team>(`/teams/${teamId}/members`, {
+          playerTag: p.tag,
+          slot: p.slot,
+          ...(p.teamRole !== defaultRole ? { teamRole: p.teamRole } : {}),
+        });
         const newMember = added.memberships?.find(
-          (m) => m.user?.playerTag?.toLowerCase() === p.tag.toLowerCase()
+          (m) => m.slot === p.slot && m.user?.playerTag?.toLowerCase() === p.tag.toLowerCase()
         );
         const finalTeam =
-          newMember && (p.position || p.teamRole !== "member")
-            ? await api.patch<Team>(`/teams/${teamId}/members/${newMember.userId}`, {
-                ...(p.position ? { position: p.position } : {}),
-                ...(p.teamRole !== "member" ? { teamRole: p.teamRole } : {}),
+          newMember && p.position
+            ? await api.patch<Team>(`/teams/${teamId}/members/${newMember.userId}/${p.slot}`, {
+                position: p.position,
               })
             : added;
         setMyTeam(finalTeam);
@@ -649,8 +675,8 @@ export function RegisterForm({
                   member={m}
                   busy={busy}
                   onAdd={() => {}}
-                  onSetRole={(role) => updateMember(m.userId, { teamRole: role })}
-                  onRemove={() => removeMember(m.userId)}
+                  onSetRole={(role) => updateMember(m.userId, "staff", { teamRole: role })}
+                  onRemove={() => removeMember(m.userId, "staff")}
                 />
               ))}
               <StaffRow busy={busy} onAdd={addStaffMember} onSetRole={() => {}} onRemove={() => {}} />
@@ -668,9 +694,9 @@ export function RegisterForm({
                     takenRoles={takenRoles}
                     busy={busy}
                     onAdd={addMember}
-                    onRemove={member ? () => removeMember(member.userId) : undefined}
+                    onRemove={member ? () => removeMember(member.userId, "player") : undefined}
                     onSetCaptain={(checked) => setPlayerCaptain(member, checked)}
-                    onSetPosition={(position) => updateMember(member!.userId, { position })}
+                    onSetPosition={(position) => updateMember(member!.userId, "player", { position })}
                   />
                 );
               })}
@@ -684,14 +710,15 @@ export function RegisterForm({
                     member={member}
                     roles={GAME_ROLES[myTeam.game]}
                     takenRoles={takenRoles}
+                    roleRequired={false}
                     busy={busy}
                     onAdd={addMember}
                     onRemove={
                       member
-                        ? () => removeMember(member.userId)
+                        ? () => removeMember(member.userId, "player")
                         : () => setSubSlots((n) => Math.max(0, n - 1))
                     }
-                    onSetPosition={(position) => updateMember(member!.userId, { position })}
+                    onSetPosition={(position) => updateMember(member!.userId, "player", { position })}
                   />
                 );
               })}

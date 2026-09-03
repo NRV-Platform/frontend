@@ -96,3 +96,22 @@ export const GAMES = [
   "League of Legends",
   "Apex Legends",
 ];
+
+export function fmtDT(iso?: string | null) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return (
+    d.toLocaleDateString("en-US", { month: "short", day: "numeric" }).toUpperCase() +
+    " · " +
+    d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+  );
+}
+
+export function fmtD(iso?: string | null) {
+  if (!iso) return "—";
+  const hasTime = iso.includes("T");
+  const d = new Date(hasTime ? iso : iso + "T12:00");
+  return d
+    .toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+    .toUpperCase();
+}
