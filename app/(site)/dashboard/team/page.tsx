@@ -21,6 +21,12 @@ import {
   ConfirmModal,
 } from "@/components/ui/primitives";
 
+// Substitute isn't a stored field — it's purely a display grouping, same
+// as on the register page: the first MIN_ROSTER_SIZE player-slot rows are
+// "Players," anything after that (up to MAX_SUBS) is "Substitutes."
+const MIN_ROSTER_SIZE = 5;
+const MAX_SUBS = 2;
+
 export default function TeamManagementPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
@@ -81,16 +87,21 @@ export default function TeamManagementPage() {
 
   const roster = team.memberships ?? [];
   const staffRows = roster.filter((m) => m.slot === "staff");
-  const playerRows = roster.filter((m) => m.slot === "player");
+  const allPlayerRows = roster.filter((m) => m.slot === "player");
+  const playerRows = allPlayerRows.slice(0, MIN_ROSTER_SIZE);
+  const subRows = allPlayerRows.slice(MIN_ROSTER_SIZE, MIN_ROSTER_SIZE + MAX_SUBS);
+
+  const nextAddIsSub = allPlayerRows.length >= MIN_ROSTER_SIZE;
+  const rosterFull = allPlayerRows.length >= MIN_ROSTER_SIZE + MAX_SUBS;
   // A person can hold both rows (a coach who also plays) — coach status
   // is defined by the staff row specifically, not by any row.
   const myCoachMembership = staffRows.find((m) => m.userId === user.id && m.teamRole === "coach");
   const isCoach = !!myCoachMembership;
-  const myPlayerMembership = playerRows.find((m) => m.userId === user.id);
+  const myPlayerMembership = allPlayerRows.find((m) => m.userId === user.id);
   const myStaffMembership = staffRows.find((m) => m.userId === user.id);
 
   const roles = GAME_ROLES[team.game] || [];
-  const takenRoles = new Set(playerRows.map((m) => m.position).filter((p): p is string => !!p));
+  const takenRoles = new Set(allPlayerRows.map((m) => m.position).filter((p): p is string => !!p));
   const roleOptions = (excludeCurrent?: string) => [
     "",
     ...roles.map((r) => ({ value: r, label: r, disabled: r !== excludeCurrent && takenRoles.has(r) })),
@@ -124,7 +135,11 @@ export default function TeamManagementPage() {
       toast("Enter a player tag", "error");
       return;
     }
-    if (roles.length > 0 && !newPosition) {
+    if (rosterFull) {
+      toast(`Roster is full (${MIN_ROSTER_SIZE} players + ${MAX_SUBS} substitutes)`, "error");
+      return;
+    }
+    if (roles.length > 0 && !newPosition && !nextAddIsSub) {
       toast("Choose a role for this player before adding", "error");
       return;
     }
@@ -229,6 +244,72 @@ export default function TeamManagementPage() {
   };
 
   const hasPendingEdits = Object.keys(posEdits).length > 0;
+
+  const playerCols = [
+    {
+      h: "Player",
+      render: (m: TeamMembership) => (
+        <div>
+          <div className="text-[#E6E6E6] font-display font-bold text-[13px] tracking-[1px] uppercase">
+            {m.user?.name ?? "—"}
+          </div>
+          <div className="text-[10px] text-[#555]">{m.user?.playerTag}</div>
+        </div>
+      ),
+    },
+    {
+      h: "Position",
+      render: (m: TeamMembership) =>
+        isCoach ? (
+          <Select
+            value={posEdits[m.userId] ?? m.position ?? ""}
+            onChange={(e) => setPosEdits((prev) => ({ ...prev, [m.userId]: e.target.value }))}
+            options={roleOptions(m.position ?? undefined)}
+            style={{ width: 140, padding: "5px 8px", fontSize: 10 }}
+          />
+        ) : (
+          <span className="text-[#888BA0] text-[10px] tracking-[1px] uppercase">
+            {m.position || "—"}
+          </span>
+        ),
+    },
+    {
+      h: "Role",
+      render: (m: TeamMembership) =>
+        isCoach ? (
+          <Select
+            value={m.teamRole}
+            onChange={(e) => updateRole(m.userId, "player", e.target.value)}
+            options={["captain", "member"]}
+            style={{ width: 110, padding: "5px 8px", fontSize: 10 }}
+          />
+        ) : (
+          <Pill color={m.teamRole === "captain" ? "#BFC2DE" : "#555"}>{m.teamRole}</Pill>
+        ),
+    },
+    {
+      h: "",
+      right: true,
+      render: (m: TeamMembership) =>
+        isCoach ? (
+          <button
+            onClick={() => removeMember(m.userId, "player")}
+            disabled={busy}
+            className="bg-transparent border border-[rgba(248,113,113,0.35)] text-[#f87171] font-mono text-[9px] tracking-[1px] px-2.5 py-1 cursor-pointer uppercase"
+          >
+            Remove
+          </button>
+        ) : m.userId === user.id ? (
+          <button
+            onClick={() => setConfirmLeave({ slot: "player" })}
+            disabled={busy}
+            className="bg-transparent border border-[rgba(248,113,113,0.35)] text-[#f87171] font-mono text-[9px] tracking-[1px] px-2.5 py-1 cursor-pointer uppercase"
+          >
+            Leave
+          </button>
+        ) : null,
+    },
+  ];
 
   return (
     <div>
@@ -363,76 +444,16 @@ export default function TeamManagementPage() {
         <SectionLabel>Players</SectionLabel>
       </div>
       <Card pad={0}>
-        <Table
-          cols={[
-            {
-              h: "Player",
-              render: (m: TeamMembership) => (
-                <div>
-                  <div className="text-[#E6E6E6] font-display font-bold text-[13px] tracking-[1px] uppercase">
-                    {m.user?.name ?? "—"}
-                  </div>
-                  <div className="text-[10px] text-[#555]">{m.user?.playerTag}</div>
-                </div>
-              ),
-            },
-            {
-              h: "Position",
-              render: (m: TeamMembership) =>
-                isCoach ? (
-                  <Select
-                    value={posEdits[m.userId] ?? m.position ?? ""}
-                    onChange={(e) => setPosEdits((prev) => ({ ...prev, [m.userId]: e.target.value }))}
-                    options={roleOptions(m.position ?? undefined)}
-                    style={{ width: 140, padding: "5px 8px", fontSize: 10 }}
-                  />
-                ) : (
-                  <span className="text-[#888BA0] text-[10px] tracking-[1px] uppercase">
-                    {m.position || "—"}
-                  </span>
-                ),
-            },
-            {
-              h: "Role",
-              render: (m: TeamMembership) =>
-                isCoach ? (
-                  <Select
-                    value={m.teamRole}
-                    onChange={(e) => updateRole(m.userId, "player", e.target.value)}
-                    options={["captain", "member"]}
-                    style={{ width: 110, padding: "5px 8px", fontSize: 10 }}
-                  />
-                ) : (
-                  <Pill color={m.teamRole === "captain" ? "#BFC2DE" : "#555"}>{m.teamRole}</Pill>
-                ),
-            },
-            {
-              h: "",
-              right: true,
-              render: (m: TeamMembership) =>
-                isCoach ? (
-                  <button
-                    onClick={() => removeMember(m.userId, "player")}
-                    disabled={busy}
-                    className="bg-transparent border border-[rgba(248,113,113,0.35)] text-[#f87171] font-mono text-[9px] tracking-[1px] px-2.5 py-1 cursor-pointer uppercase"
-                  >
-                    Remove
-                  </button>
-                ) : m.userId === user.id ? (
-                  <button
-                    onClick={() => setConfirmLeave({ slot: "player" })}
-                    disabled={busy}
-                    className="bg-transparent border border-[rgba(248,113,113,0.35)] text-[#f87171] font-mono text-[9px] tracking-[1px] px-2.5 py-1 cursor-pointer uppercase"
-                  >
-                    Leave
-                  </button>
-                ) : null,
-            },
-          ]}
-          rows={playerRows}
-          keyFn={(m) => m.id}
-        />
+        <Table cols={playerCols} rows={playerRows} keyFn={(m) => m.id} />
       </Card>
+
+      <div style={{ marginTop: 40 }}>
+        <SectionLabel>Substitutes</SectionLabel>
+      </div>
+      <Card pad={0}>
+        <Table cols={playerCols} rows={subRows} keyFn={(m) => m.id} />
+      </Card>
+
       {isCoach && hasPendingEdits && (
         <div className="mt-3.5 flex items-center gap-3" style={{ marginTop: 14 }}>
           <Btn onClick={savePositions} disabled={busy}>
@@ -447,33 +468,47 @@ export default function TeamManagementPage() {
       {isCoach && (
         <Card pad={18} className="mt-3.5" style={{ marginTop: 14 }}>
           <div className="font-mono text-[9px] tracking-[3px] text-[#555] uppercase mb-3.5">
-            Add player by tag
+            Add {nextAddIsSub ? "substitute" : "player"} by tag
           </div>
-          <div className="flex gap-2.5 flex-wrap items-end">
-            <Field label="Player tag" req className="flex-[2_1_180px]">
-              <Input
-                value={playerTagInput}
-                onChange={(e) => setPlayerTagInput(e.target.value)}
-                placeholder="Name#1234"
-              />
-            </Field>
-            {roles.length > 0 && (
-              <Field label="Role" req className="flex-[1_1_140px]">
-                <Select
-                  value={newPosition}
-                  onChange={(e) => setNewPosition(e.target.value)}
-                  options={roleOptions()}
-                />
-              </Field>
-            )}
-            <Btn onClick={addPlayer} disabled={busy}>
-              Add
-            </Btn>
-          </div>
-          <div className="font-mono text-[10px] text-[#444] leading-[1.7] mt-3.5">
-            The player must already have an NRV account. A coach can also be added here as a
-            player — the two roles are independent.
-          </div>
+          {rosterFull ? (
+            <div className="font-mono text-[11px] text-[#fbbf24] leading-[1.7]">
+              Roster is full ({MIN_ROSTER_SIZE} players + {MAX_SUBS} substitutes). Remove someone
+              before adding another.
+            </div>
+          ) : (
+            <>
+              <div className="flex gap-2.5 flex-wrap items-end">
+                <Field label="Player tag" req className="flex-[2_1_180px]">
+                  <Input
+                    value={playerTagInput}
+                    onChange={(e) => setPlayerTagInput(e.target.value)}
+                    placeholder="Name#1234"
+                  />
+                </Field>
+                {roles.length > 0 && (
+                  <Field label="Role" req={!nextAddIsSub} className="flex-[1_1_140px]">
+                    <Select
+                      value={newPosition}
+                      onChange={(e) => setNewPosition(e.target.value)}
+                      options={roleOptions()}
+                    />
+                  </Field>
+                )}
+                <Btn onClick={addPlayer} disabled={busy}>
+                  Add
+                </Btn>
+              </div>
+              <div className="font-mono text-[10px] text-[#444] leading-[1.7] mt-3.5">
+                The player must already have an NRV account. A coach can also be added here as a
+                player — the two roles are independent. The first {MIN_ROSTER_SIZE} players added
+                are the starting roster and require a role; the next {MAX_SUBS} become
+                substitutes, whose role is optional.
+                {nextAddIsSub && (
+                  <span className="text-[#fbbf24]"> This add will be a substitute.</span>
+                )}
+              </div>
+            </>
+          )}
         </Card>
       )}
 
