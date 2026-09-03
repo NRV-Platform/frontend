@@ -80,6 +80,13 @@ export default function TeamManagementPage() {
   const myMembership = team.memberships?.find((m) => m.userId === user.id);
   const isCoach = myMembership?.teamRole === "coach";
   const roles = GAME_ROLES[team.game] || [];
+  const takenRoles = new Set(
+    (team.memberships ?? []).map((m) => m.position).filter((p): p is string => !!p)
+  );
+  const roleOptions = (excludeCurrent?: string) => [
+    "",
+    ...roles.map((r) => ({ value: r, label: r, disabled: r !== excludeCurrent && takenRoles.has(r) })),
+  ];
 
   const addMember = async () => {
     if (!tagInput.trim()) {
@@ -88,6 +95,10 @@ export default function TeamManagementPage() {
     }
     if (roles.length > 0 && !newPosition) {
       toast("Choose a role for this player before adding", "error");
+      return;
+    }
+    if (newPosition && takenRoles.has(newPosition)) {
+      toast(`${newPosition} is already taken by another player on this roster`, "error");
       return;
     }
     setBusy(true);
@@ -219,7 +230,7 @@ export default function TeamManagementPage() {
                     <Select
                       value={posEdit.position}
                       onChange={(e) => setPosEdit({ userId: m.userId, position: e.target.value })}
-                      options={["", ...roles]}
+                      options={roleOptions(m.position ?? undefined)}
                       style={{ width: 140, padding: "5px 8px", fontSize: 10 }}
                     />
                     <button
@@ -303,7 +314,7 @@ export default function TeamManagementPage() {
                 <Select
                   value={newPosition}
                   onChange={(e) => setNewPosition(e.target.value)}
-                  options={["", ...roles]}
+                  options={roleOptions()}
                 />
               </Field>
             )}

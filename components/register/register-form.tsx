@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/components/ui/toast";
@@ -24,6 +24,34 @@ import {
 const MIN_ROSTER_SIZE = 5;
 const MAX_ROSTER_SIZE = 8;
 const MAX_SUBS = 2;
+
+// A player/staff row not yet sent to the backend — held in local state
+// until "Submit registration" is clicked, so browsing the register page
+// never writes to a team's real roster on its own.
+interface PendingMember {
+  localId: string;
+  tag: string;
+  teamRole: string;
+  position?: string;
+}
+
+function toDisplayMember(p: PendingMember): TeamMembership {
+  return {
+    id: p.localId,
+    userId: p.localId,
+    teamId: "",
+    teamRole: p.teamRole as TeamMembership["teamRole"],
+    position: p.position ?? null,
+    user: {
+      id: p.localId,
+      email: "",
+      name: p.tag,
+      playerTag: p.tag,
+      role: "user",
+      mfaEnabled: false,
+    },
+  };
+}
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
   return (
@@ -83,6 +111,11 @@ function RosterRow({
           <div className="font-mono text-[12px] text-[#BFC2DE] py-2.5">
             {member.user?.name ?? member.user?.playerTag}{" "}
             <span className="text-[#555]">({member.user?.playerTag})</span>
+            {member.id.startsWith("pending-") && (
+              <span className="text-[#fbbf24] text-[9px] tracking-[1px] uppercase ml-2">
+                Not saved yet
+              </span>
+            )}
           </div>
         ) : (
           <Input value={tag} onChange={(e) => setTag(e.target.value)} placeholder="Name#1234" />
@@ -173,6 +206,11 @@ function StaffRow({
           <div className="font-mono text-[12px] text-[#BFC2DE] py-2.5">
             {member.user?.name ?? member.user?.playerTag}{" "}
             <span className="text-[#555]">({member.user?.playerTag})</span>
+            {member.id.startsWith("pending-") && (
+              <span className="text-[#fbbf24] text-[9px] tracking-[1px] uppercase ml-2">
+                Not saved yet
+              </span>
+            )}
           </div>
         ) : (
           <Input value={tag} onChange={(e) => setTag(e.target.value)} placeholder="Name#1234" />
@@ -243,6 +281,9 @@ export function RegisterForm({
   const [done, setDone] = useState<"ok" | "waitlist" | null>(null);
   const [subSlots, setSubSlots] = useState(0);
   const [confirmCreateTeam, setConfirmCreateTeam] = useState(false);
+  const [pendingMembers, setPendingMembers] = useState<PendingMember[]>([]);
+  const pendingSeq = useRef(0);
+  const nextLocalId = () => `pending-${Date.now()}-${pendingSeq.current++}`;
 
   // Reset the active team selection whenever the event (and thus game)
   // changes, so a team picked for one game never carries into another.
@@ -250,6 +291,7 @@ export function RegisterForm({
   if (evId !== lastEvId) {
     setLastEvId(evId);
     setMyTeam(null);
+    setPendingMembers([]);
   }
 
   useEffect(() => {
@@ -305,50 +347,36 @@ export function RegisterForm({
     }
   };
 
-  const addMember = async (playerTag: string, position?: string, captain?: boolean) => {
-    if (!myTeam) return;
-    setBusy(true);
-    try {
-      let updated = await api.post<Team>(`/teams/${myTeam.id}/members`, { playerTag });
-      const newMember = updated.memberships?.find(
-        (m) => m.user?.playerTag?.toLowerCase() === playerTag.toLowerCase()
-      );
-      if (newMember && (position || captain)) {
-        updated = await api.patch<Team>(`/teams/${myTeam.id}/members/${newMember.userId}`, {
-          ...(position ? { position } : {}),
-          ...(captain ? { teamRole: "captain" } : {}),
-        });
-      }
-      setMyTeam(updated);
-      toast("Player added to roster");
-    } catch (e) {
-      toast(e instanceof ApiError ? e.message : "Failed to add player", "error");
-    } finally {
-      setBusy(false);
-    }
+  // Adding a player/staff member only stages it locally — nothing reaches
+  // the backend until "Submit registration" flushes pendingMembers.
+  const addMember = (playerTag: string, position?: string, captain?: boolean) => {
+    setPendingMembers((list) => [
+      ...list,
+      { localId: nextLocalId(), tag: playerTag, teamRole: captain ? "captain" : "member", position },
+    ]);
+    toast("Player added to draft roster");
   };
 
-  const addStaffMember = async (playerTag: string, role: string) => {
-    if (!myTeam) return;
-    setBusy(true);
-    try {
-      const added = await api.post<Team>(`/teams/${myTeam.id}/members`, { playerTag });
-      const newMember = added.memberships?.find(
-        (m) => m.user?.playerTag?.toLowerCase() === playerTag.toLowerCase()
-      );
-      const updated = newMember
-        ? await api.patch<Team>(`/teams/${myTeam.id}/members/${newMember.userId}`, { teamRole: role })
-        : added;
-      setMyTeam(updated);
-      toast("Staff added to roster");
-    } catch (e) {
-      toast(e instanceof ApiError ? e.message : "Failed to add staff", "error");
-    } finally {
-      setBusy(false);
-    }
+  const addStaffMember = (playerTag: string, role: string) => {
+    setPendingMembers((list) => [
+      ...list,
+      { localId: nextLocalId(), tag: playerTag, teamRole: role },
+    ]);
+    toast("Staff added to draft roster");
   };
 
+  const isPendingId = (id: string) => id.startsWith("pending-");
+
+  // Real members are edited immediately via the API (they already exist
+  // regardless of this registration); pending ones are edited in place
+  // in local state since they haven't been created yet.
   const updateMember = async (userId: string, data: { teamRole?: string; position?: string }) => {
+    if (isPendingId(userId)) {
+      setPendingMembers((list) =>
+        list.map((p) => (p.localId === userId ? { ...p, ...data } : p))
+      );
+      return;
+    }
     if (!myTeam) return;
     setBusy(true);
     try {
@@ -362,6 +390,10 @@ export function RegisterForm({
   };
 
   const removeMember = async (userId: string) => {
+    if (isPendingId(userId)) {
+      setPendingMembers((list) => list.filter((p) => p.localId !== userId));
+      return;
+    }
     if (!myTeam) return;
     setBusy(true);
     try {
@@ -375,7 +407,9 @@ export function RegisterForm({
     }
   };
 
-  const roster = myTeam?.memberships ?? [];
+  const realRoster = myTeam?.memberships ?? [];
+  const pendingDisplay = pendingMembers.map(toDisplayMember);
+  const roster = [...realRoster, ...pendingDisplay];
   const staffMembers = roster.filter((m) => m.teamRole === "coach" || m.teamRole === "assistant_coach");
   const nonStaffMembers = roster.filter((m) => m.teamRole !== "coach" && m.teamRole !== "assistant_coach");
   const takenRoles = new Set(
@@ -407,9 +441,33 @@ export function RegisterForm({
 
     setBusy(true);
     try {
+      // Flush every draft player/staff row to the real roster first, one
+      // at a time so a mid-batch failure leaves a clear, resumable state:
+      // rows that succeeded are gone from the draft (they're real now),
+      // and everything from the failure point on stays pending for retry.
+      const teamId = myTeam.id;
+      const remaining = [...pendingMembers];
+      while (remaining.length > 0) {
+        const p = remaining[0];
+        const added = await api.post<Team>(`/teams/${teamId}/members`, { playerTag: p.tag });
+        const newMember = added.memberships?.find(
+          (m) => m.user?.playerTag?.toLowerCase() === p.tag.toLowerCase()
+        );
+        const finalTeam =
+          newMember && (p.position || p.teamRole !== "member")
+            ? await api.patch<Team>(`/teams/${teamId}/members/${newMember.userId}`, {
+                ...(p.position ? { position: p.position } : {}),
+                ...(p.teamRole !== "member" ? { teamRole: p.teamRole } : {}),
+              })
+            : added;
+        setMyTeam(finalTeam);
+        remaining.shift();
+        setPendingMembers([...remaining]);
+      }
+
       await api.post("/registrations", {
         eventId: ev.id,
-        teamId: myTeam.id,
+        teamId,
         contactEmail: contactEmail.trim(),
         acksTos: true,
         acksRulebookVersion: rulebookVersion,
@@ -607,6 +665,7 @@ export function RegisterForm({
                     captainable
                     isCaptain={member?.teamRole === "captain"}
                     roles={GAME_ROLES[myTeam.game]}
+                    takenRoles={takenRoles}
                     busy={busy}
                     onAdd={addMember}
                     onRemove={member ? () => removeMember(member.userId) : undefined}
@@ -624,6 +683,7 @@ export function RegisterForm({
                     key={member?.id ?? `sub-slot-${i}`}
                     member={member}
                     roles={GAME_ROLES[myTeam.game]}
+                    takenRoles={takenRoles}
                     busy={busy}
                     onAdd={addMember}
                     onRemove={
