@@ -1,8 +1,8 @@
 import { apiGet } from "@/lib/api-server";
 import type { NrvEvent } from "@/lib/types";
-import { evStatus } from "@/lib/derived";
+import { evStatus, fmtD } from "@/lib/derived";
 import { PageShell } from "@/components/nav";
-import { PageHead, Card, Pill, fmtD } from "@/components/ui/primitives";
+import { PageHead, Card, Pill } from "@/components/ui/primitives";
 import { RegCTA } from "@/components/tournaments/reg-cta";
 import Link from "next/link";
 
