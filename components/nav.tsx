@@ -136,7 +136,7 @@ export function MVPNav() {
                         e.preventDefault();
                         go(c.href);
                       }}
-                      className="block px-[18px] py-2.5 font-mono text-[11px] text-[#888BA0] tracking-[1px] uppercase no-underline cursor-pointer transition-all hover:text-[#E6E6E6] hover:bg-[rgba(126,130,172,0.15)]"
+                      className="block px-[12px] py-2.5 font-mono text-[10px] text-[#888BA0] tracking-[1px] uppercase no-underline cursor-pointer transition-all hover:text-[#E6E6E6] hover:bg-[rgba(126,130,172,0.15)]"
                     >
                       {c.label}
                     </a>
@@ -224,7 +224,7 @@ export function MVPNav() {
                           e.preventDefault();
                           go(c.href);
                         }}
-                        className="block font-mono text-[10px] text-[#666] tracking-[1px] uppercase no-underline"
+                        className="block font-mono text-[11px] text-[#666] tracking-[1px] uppercase no-underline"
                         style={{ padding: "11px 24px 11px 40px" }}
                       >
                         {c.label}
