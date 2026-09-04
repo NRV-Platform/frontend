@@ -17,6 +17,7 @@ export function MVPNav() {
   const { user, logout } = useAuth();
   const [open, setOpen] = useState<number | null>(null);
   const [mob, setMob] = useState(false);
+  const [mobOpenSection, setMobOpenSection] = useState<number | null>(null);
   const [acctOpenDesktop, setAcctOpenDesktop] = useState(false);
   const [acctOpenMobile, setAcctOpenMobile] = useState(false);
   const ref = useRef<HTMLElement>(null);
@@ -28,6 +29,7 @@ export function MVPNav() {
       if (ref.current && !ref.current.contains(e.target as Node)) {
         setOpen(null);
         setMob(false);
+        setMobOpenSection(null);
       }
       if (acctRefDesktop.current && !acctRefDesktop.current.contains(e.target as Node)) {
         setAcctOpenDesktop(false);
@@ -66,6 +68,7 @@ export function MVPNav() {
   const go = (h: string) => {
     setOpen(null);
     setMob(false);
+    setMobOpenSection(null);
     router.push(h);
   };
 
@@ -133,7 +136,7 @@ export function MVPNav() {
                         e.preventDefault();
                         go(c.href);
                       }}
-                      className="block px-[18px] py-2.5 font-mono text-[12px] text-[#888BA0] tracking-[1px] uppercase no-underline cursor-pointer transition-all hover:text-[#E6E6E6] hover:bg-[rgba(126,130,172,0.15)]"
+                      className="block px-[18px] py-2.5 font-mono text-[11px] text-[#888BA0] tracking-[1px] uppercase no-underline cursor-pointer transition-all hover:text-[#E6E6E6] hover:bg-[rgba(126,130,172,0.15)]"
                     >
                       {c.label}
                     </a>
@@ -170,7 +173,10 @@ export function MVPNav() {
           go={go}
         />
         <button
-          onClick={() => setMob((m) => !m)}
+          onClick={() => {
+            setMob((m) => !m);
+            setMobOpenSection(null);
+          }}
           aria-label="Menu"
           className="bg-transparent border border-[rgba(126,130,172,0.4)] text-[#BFC2DE] px-2.5 py-1.5 cursor-pointer font-mono text-[12px]"
         >
@@ -178,26 +184,70 @@ export function MVPNav() {
         </button>
       </div>
       {mob && (
-        <div className="nrv-show-sm absolute top-16 left-0 right-0 bg-[#0E0E0E] border-b border-[rgba(126,130,172,0.3)] py-2 flex-col">
-          {[
-            { label: "HOME", href: "/" },
-            ...items.flatMap((it) =>
-              it.children ? it.children.map((c) => ({ label: c.label.toUpperCase(), href: c.href })) : [it]
-            ),
-          ].map((it, i) => (
-            <a
-              key={i}
-              href={it.href}
-              onClick={(e) => {
-                e.preventDefault();
-                go(it.href);
-              }}
-              className="block font-mono text-[12px] text-[#888BA0] tracking-[2px] uppercase no-underline border-b border-white/[0.04]"
-              style={{ padding: "13px 24px" }}
-            >
-              {it.label}
-            </a>
-          ))}
+        <div className="nrv-show-sm absolute top-16 left-0 right-0 bg-[#0E0E0E] border-b border-[rgba(126,130,172,0.3)] py-2 flex-col max-h-[calc(100vh-64px)] overflow-y-auto">
+          <Link
+            href="/"
+            onClick={() => {
+              setMob(false);
+              setMobOpenSection(null);
+            }}
+            className="block font-mono text-[12px] text-[#888BA0] tracking-[2px] uppercase no-underline border-b border-white/[0.04]"
+            style={{ padding: "13px 24px" }}
+          >
+            HOME
+          </Link>
+          {items.map((it, i) =>
+            it.children ? (
+              <div key={i} className="border-b border-white/[0.04]">
+                <button
+                  onClick={() => setMobOpenSection((s) => (s === i ? null : i))}
+                  className="w-full flex items-center justify-between font-mono text-[12px] text-[#888BA0] tracking-[2px] uppercase bg-transparent border-none cursor-pointer text-left"
+                  style={{ padding: "13px 24px" }}
+                >
+                  {it.label}
+                  <svg width="10" height="6" viewBox="0 0 10 6" fill="none">
+                    <path
+                      d={mobOpenSection === i ? "M1 5L5 1L9 5" : "M1 1L5 5L9 1"}
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </button>
+                {mobOpenSection === i && (
+                  <div className="pb-1.5">
+                    {it.children.map((c, j) => (
+                      <a
+                        key={j}
+                        href={c.href}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          go(c.href);
+                        }}
+                        className="block font-mono text-[10px] text-[#666] tracking-[1px] uppercase no-underline"
+                        style={{ padding: "11px 24px 11px 40px" }}
+                      >
+                        {c.label}
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <a
+                key={i}
+                href={it.href}
+                onClick={(e) => {
+                  e.preventDefault();
+                  go(it.href);
+                }}
+                className="block font-mono text-[12px] text-[#888BA0] tracking-[2px] uppercase no-underline border-b border-white/[0.04]"
+                style={{ padding: "13px 24px" }}
+              >
+                {it.label}
+              </a>
+            )
+          )}
         </div>
       )}
     </nav>
