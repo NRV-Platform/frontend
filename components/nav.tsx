@@ -224,7 +224,7 @@ export function MVPNav() {
                           e.preventDefault();
                           go(c.href);
                         }}
-                        className="block font-mono text-[11px] text-[#666] tracking-[1px] uppercase no-underline"
+                        className="block font-mono text-[10px] text-[#666] tracking-[1px] uppercase no-underline"
                         style={{ padding: "11px 24px 11px 40px" }}
                       >
                         {c.label}
