@@ -41,6 +41,10 @@
   box-sizing: border-box;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 html,
 body {
   background: var(--color-bg);
@@ -53,7 +57,10 @@ body {
 }
 
 a {
-  color: inherit;
+  color: #bfc2de;
+}
+a:hover {
+  color: #e6e6e6;
 }
 
 ::selection {
@@ -62,17 +69,14 @@ a {
 }
 
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 4px;
+  height: 4px;
 }
 ::-webkit-scrollbar-track {
-  background: #0b0b0e;
+  background: #0e0e0e;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(126, 130, 172, 0.35);
-}
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(126, 130, 172, 0.55);
+  background: #7e82ac;
 }
 
 input,
@@ -80,6 +84,12 @@ select,
 textarea,
 button {
   font-family: inherit;
+}
+
+input[type="checkbox"] {
+  accent-color: #7e82ac;
+  width: 14px;
+  height: 14px;
 }
 
 .nrv-display {
@@ -90,9 +100,18 @@ button {
 
 .nrv-spark {
   display: inline-block;
-  background: var(--color-accent);
-  transform: rotate(45deg);
+  background: #8c8fb5;
   flex-shrink: 0;
+  clip-path: polygon(
+    50% 0,
+    58% 42%,
+    100% 50%,
+    58% 58%,
+    50% 100%,
+    42% 58%,
+    0 50%,
+    42% 42%
+  );
 }
 
 .nrv-grid-2 {

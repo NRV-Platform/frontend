@@ -192,7 +192,8 @@ export function MVPNav() {
                 e.preventDefault();
                 go(it.href);
               }}
-              className="block px-6 py-3.5 font-mono text-[12px] text-[#888BA0] tracking-[2px] uppercase no-underline border-b border-white/[0.04]"
+              className="block font-mono text-[12px] text-[#888BA0] tracking-[2px] uppercase no-underline border-b border-white/[0.04]"
+              style={{ padding: "13px 24px" }}
             >
               {it.label}
             </a>
@@ -292,7 +293,10 @@ export function MVPFooter() {
   const inDashboard = pathname?.startsWith("/dashboard") ?? false;
   if (inDashboard) return null;
   return (
-    <footer className="border-t border-[rgba(126,130,172,0.2)] bg-[#0B0B0E] px-4 sm:px-10 py-10 mt-20">
+    <footer
+      className="border-t border-[rgba(126,130,172,0.2)] bg-[#0B0B0E] px-4 sm:px-10 py-10"
+      style={{ marginTop: 80 }}
+    >
       <div className="max-w-[1200px] mx-auto flex items-center justify-between flex-wrap gap-4">
         <span className="font-mono text-[10px] text-[#444] tracking-[2px] uppercase">
           NERVE ESPORTS
