@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/components/ui/toast";
 import { Card, Field, Input, PasswordInput, Btn } from "@/components/ui/primitives";
 import { PASSWORD_RULES, passwordFailures } from "@/lib/password";
+import { PLAYER_TAG_PATTERN, PLAYER_TAG_HINT } from "@/lib/derived";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -17,6 +18,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [name, setName] = useState("");
+  const [playerTag, setPlayerTag] = useState("");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -34,13 +36,17 @@ export default function LoginPage() {
         setErr("Passwords do not match.");
         return;
       }
+      if (playerTag.trim() && !PLAYER_TAG_PATTERN.test(playerTag.trim())) {
+        setErr(`Player tag must be ${PLAYER_TAG_HINT}`);
+        return;
+      }
     }
 
     setBusy(true);
     const res =
       mode === "login"
         ? await login(email.trim().toLowerCase(), password)
-        : await signup(email.trim().toLowerCase(), password, name.trim());
+        : await signup(email.trim().toLowerCase(), password, name.trim(), playerTag.trim() || undefined);
     setBusy(false);
     if (!res.ok) {
       setErr(res.error || "Something went wrong");
@@ -72,6 +78,19 @@ export default function LoginPage() {
             {mode === "signup" && (
               <Field label="Name" req>
                 <Input value={name} onChange={(e) => setName(e.target.value)} required />
+              </Field>
+            )}
+            {mode === "signup" && (
+              <Field label="Player tag">
+                <Input
+                  value={playerTag}
+                  onChange={(e) => setPlayerTag(e.target.value)}
+                  placeholder="ShadowStriker"
+                  maxLength={16}
+                />
+                <div className="font-mono text-[10px] text-[#555] mt-1.5">
+                  {PLAYER_TAG_HINT}. Leave blank to get one assigned automatically.
+                </div>
               </Field>
             )}
             <Field label="Email" req>

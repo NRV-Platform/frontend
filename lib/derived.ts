@@ -1,5 +1,11 @@
 import type { Match, NrvEvent, StandingsRow } from "./types";
 
+// Letters, numbers, underscore, hyphen only — 2-16 characters. Chosen
+// freely by the player at signup or later from their profile; matches the
+// backend's SignupDto/UpdatePlayerTagDto validation exactly.
+export const PLAYER_TAG_PATTERN = /^[a-zA-Z0-9_-]{2,16}$/;
+export const PLAYER_TAG_HINT = "2-16 characters: letters, numbers, _ or -";
+
 export function evStatus(ev: NrvEvent): "Upcoming" | "Active" | "Completed" {
   const t = new Date().toISOString().slice(0, 10);
   const start = ev.startDate.slice(0, 10);

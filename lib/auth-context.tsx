@@ -38,7 +38,8 @@ interface AuthContextValue {
   signup: (
     email: string,
     password: string,
-    name: string
+    name: string,
+    playerTag?: string
   ) => Promise<{ ok: boolean; error?: string; user?: PublicUser }>;
   logout: () => void;
   setUser: (user: User | null) => void;
@@ -103,11 +104,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const signup = useCallback(
-    async (email: string, password: string, name: string) => {
+    async (email: string, password: string, name: string, playerTag?: string) => {
       try {
         const res = await api.post<AuthResponse>(
           "/auth/signup",
-          { email, password, name },
+          { email, password, name, ...(playerTag ? { playerTag } : {}) },
           { auth: false }
         );
         setTokens(res.accessToken, res.refreshToken);
