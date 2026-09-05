@@ -153,7 +153,7 @@ export default function LoginPage() {
               setErr("");
               setConfirmPassword("");
             }}
-            className="font-mono text-[11px] text-[#888BA0] tracking-[1px] uppercase cursor-pointer bg-transparent border-none hover:text-[#E6E6E6]"
+            className="font-mono text-[9px] text-[#888BA0] tracking-[1px] uppercase cursor-pointer bg-transparent border-none hover:text-[#E6E6E6]"
           >
             {mode === "login" ? "Need an account? Sign up" : "Already have an account? Log in"}
           </button>
