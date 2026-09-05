@@ -53,7 +53,7 @@ export default async function HomePage() {
       ).slice(0, 5)
     : [];
 
-  const nrvTeams = (teams ?? []).filter((t) => t.isNrv && t.homepageEnabled);
+  const visibleTeams = (teams ?? []).filter((t) => t.homepageEnabled);
 
   return (
     <div>
@@ -85,7 +85,7 @@ export default async function HomePage() {
           <HeroCTA activeEventId={activeEvent?.id ?? null} events={allEvents} />
         </div>
       </div>
-      <TeamsStrip teams={nrvTeams} />
+      <TeamsStrip teams={visibleTeams} />
       <PageShell>
         <div className="flex gap-5 flex-wrap" style={{ marginTop: -40, position: "relative" }}>
           <MatchWidget

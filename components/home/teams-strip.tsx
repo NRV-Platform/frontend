@@ -10,7 +10,7 @@ export function TeamsStrip({ teams }: { teams: Team[] }) {
     <div className="border-b border-[rgba(126,130,172,0.2)] px-4 sm:px-10 py-4.5" style={{ padding: "18px clamp(16px,4vw,40px)" }}>
       <div className="max-w-[1200px] mx-auto flex items-center gap-4.5 flex-wrap" style={{ gap: 18 }}>
         <span className="font-mono text-[9px] text-[#555] tracking-[3px] uppercase flex-shrink-0">
-          Our teams
+          Competing teams
         </span>
         <div className="flex gap-2.5 flex-wrap">
           {teams.map((t) => (
